@@ -4,543 +4,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentation - LOKI</title>
-    <meta name="description" content="Complete documentation for LOKI - Local AI Assistant">
+    <title>LOKI_ / Docs</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <meta name="description" content="Technical documentation for LOKI environment.">
 
+    <!-- Typography: JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'void': '#050505',
+                        'neon': '#00ff9d',
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #000;
-            color: #fff;
-            line-height: 1.6;
+            background-color: #050505;
+            color: #d4d4d8;
+            font-family: 'JetBrains Mono', monospace;
             -webkit-font-smoothing: antialiased;
+            /* Subtle scanline effect matching index */
+            background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-        /* Navigation */
-        nav {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            z-index: 100;
-        }
-
-        nav .container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 64px;
-        }
-
-        .logo {
-            font-weight: 700;
-            font-size: 18px;
-            letter-spacing: -0.5px;
-            text-decoration: none;
+        /* Selection Color */
+        ::selection {
+            background: rgba(0, 255, 157, 0.2);
             color: #fff;
         }
 
-        .nav-links {
-            display: flex;
-            gap: 32px;
-            align-items: center;
+        /* Sidebar Link Active State */
+        .nav-item.active {
+            color: #00ff9d;
+            border-left: 2px solid #00ff9d;
+            padding-left: 14px;
+            /* Adjust for border */
+            background: rgba(0, 255, 157, 0.05);
         }
 
-        .nav-links a {
-            color: #888;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: color 0.2s;
+        /* Code Blocks */
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            color: #00ff9d;
         }
 
-        .nav-links a:hover,
-        .nav-links a.active {
-            color: #fff;
-        }
-
-        /* Layout */
-        .docs-layout {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 60px;
-            padding: 100px 0 60px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            position: sticky;
-            top: 100px;
-            height: fit-content;
-        }
-
-        .sidebar-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 16px;
-        }
-
-        .sidebar-links {
-            list-style: none;
-        }
-
-        .sidebar-links li {
-            margin-bottom: 8px;
-        }
-
-        .sidebar-links a {
-            color: #888;
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.2s;
-            display: block;
-            padding: 4px 0;
-        }
-
-        .sidebar-links a:hover,
-        .sidebar-links a.active {
-            color: #fff;
-        }
-
-        /* Content */
-        .content {
-            max-width: 800px;
-        }
-
-        .content h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            letter-spacing: -1px;
-        }
-
-        .content h2 {
-            font-size: 32px;
-            font-weight: 700;
-            margin-top: 60px;
-            margin-bottom: 20px;
-            letter-spacing: -0.5px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .content h2:first-of-type {
-            margin-top: 40px;
-            border-top: none;
-            padding-top: 0;
-        }
-
-        .content h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-top: 32px;
-            margin-bottom: 12px;
-        }
-
-        .content p {
-            color: #888;
-            margin-bottom: 20px;
-            font-size: 16px;
-            line-height: 1.7;
-        }
-
-        .content ul,
-        .content ol {
-            color: #888;
-            margin-bottom: 20px;
-            padding-left: 24px;
-        }
-
-        .content li {
-            margin-bottom: 8px;
-        }
-
-        .code-block {
-            background: #0a0a0a;
+        pre {
+            background: #0a0a0a !important;
             border: 1px solid #1a1a1a;
-            border-radius: 8px;
-            padding: 16px;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 14px;
-            color: #888;
-            overflow-x: auto;
-            margin-bottom: 20px;
-        }
-
-        .code-inline {
-            background: #1a1a1a;
-            padding: 2px 6px;
             border-radius: 4px;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 14px;
-            color: #fff;
         }
 
-        .note {
-            background: rgba(59, 130, 246, 0.1);
-            border-left: 3px solid #3b82f6;
-            padding: 16px;
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
             border-radius: 4px;
-            margin-bottom: 20px;
-        }
-
-        .note p {
-            color: #a5b4fc;
-            margin: 0;
-        }
-
-        .warning {
-            background: rgba(234, 179, 8, 0.1);
-            border-left: 3px solid #eab308;
-            padding: 16px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-
-        .warning p {
-            color: #fde047;
-            margin: 0;
-        }
-
-        @media (max-width: 768px) {
-            .docs-layout {
-                grid-template-columns: 1fr;
-                gap: 40px;
-            }
-
-            .sidebar {
-                position: static;
-            }
-
-            .content h1 {
-                font-size: 36px;
-            }
-
-            .content h2 {
-                font-size: 24px;
-            }
         }
     </style>
 </head>
 
-<body>
-    <!-- Navigation -->
-    <nav>
-        <div class="container">
-            <a href="index.html" class="logo">LOKI</a>
-            <div class="nav-links">
-                <a href="index.html#features">Features</a>
-                <a href="documentation.html" class="active">Docs</a>
-                <a href="https://github.com/IamNishant51/LOKI" target="_blank">GitHub</a>
-            </div>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <nav
+        class="w-full py-6 px-6 md:px-12 flex justify-between items-center bg-[#050505]/90 backdrop-blur-sm sticky top-0 z-50 border-b border-white/5">
+        <a href="index.html" class="text-lg font-bold tracking-tighter text-white hover:text-neon transition-colors">
+            LOKI<span class="text-neon">_</span>
+        </a>
+        <div class="flex gap-8 text-xs text-zinc-500 uppercase tracking-widest">
+            <a href="index.html" class="hover:text-white transition-colors">Home</a>
+            <a href="https://github.com/IamNishant51/LOKI" target="_blank"
+                class="hover:text-white transition-colors">GitHub</a>
         </div>
     </nav>
 
-    <!-- Docs Layout -->
-    <div class="container">
-        <div class="docs-layout">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <div class="sidebar-title">Documentation</div>
-                <ul class="sidebar-links">
-                    <li><a href="#introduction" class="active">Introduction</a></li>
-                    <li><a href="#installation">Installation</a></li>
-                    <li><a href="#usage">Usage</a></li>
-                    <li><a href="#commands">Commands</a></li>
-                    <li><a href="#whatsapp">WhatsApp Integration</a></li>
-                    <li><a href="#vscode">VS Code Extension</a></li>
-                    <li><a href="#tools">Available Tools</a></li>
-                    <li><a href="#configuration">Configuration</a></li>
-                    <li><a href="#troubleshooting">Troubleshooting</a></li>
-                </ul>
-            </aside>
+    <div class="flex flex-col md:flex-row max-w-7xl mx-auto w-full flex-grow">
 
-            <!-- Content -->
-            <main class="content">
-                <h1>Documentation</h1>
-                <p>Complete guide to using LOKI - your privacy-first local AI assistant.</p>
+        <!-- Sidebar Navigation -->
+        <aside
+            class="w-full md:w-64 pt-12 pb-8 px-6 md:pl-0 md:pr-8 sticky top-20 h-fit bg-[#050505] z-10 hidden md:block border-r border-white/5 mx-6">
+            <div class="text-xs font-bold text-zinc-600 mb-6 uppercase tracking-widest">Index</div>
+            <ul class="space-y-1 text-sm text-zinc-400">
+                <li><a href="#introduction"
+                        class="nav-item block py-2 hover:text-white transition-all pl-4 border-l-2 border-transparent">01
+                        / Intro</a></li>
+                <li><a href="#installation"
+                        class="nav-item block py-2 hover:text-white transition-all pl-4 border-l-2 border-transparent">02
+                        / Install</a></li>
+                <li><a href="#usage"
+                        class="nav-item block py-2 hover:text-white transition-all pl-4 border-l-2 border-transparent">03
+                        / Usage</a></li>
+                <li><a href="#whatsapp"
+                        class="nav-item block py-2 hover:text-white transition-all pl-4 border-l-2 border-transparent">04
+                        / WhatsApp</a></li>
+                <li><a href="#vscode"
+                        class="nav-item block py-2 hover:text-white transition-all pl-4 border-l-2 border-transparent">05
+                        / Extensions</a></li>
+                <li><a href="#configuration"
+                        class="nav-item block py-2 hover:text-white transition-all pl-4 border-l-2 border-transparent">06
+                        / Config</a></li>
+            </ul>
+        </aside>
 
-                <h2 id="introduction">Introduction</h2>
-                <p>
-                    LOKI (Local Omni Knowledge Interface) is a powerful AI assistant that runs entirely on your machine.
-                    Unlike cloud-based AI services, LOKI processes everything locally using Ollama, ensuring your code
-                    and conversations never leave your computer.
+        <!-- Main Content -->
+        <main class="flex-grow pt-12 pb-32 px-6 md:px-12 max-w-4xl">
+
+            <h1 class="text-4xl font-bold text-white mb-6 tracking-tight">System Documentation</h1>
+            <p class="text-zinc-500 text-lg mb-12 leading-relaxed border-l border-neon pl-6">
+                Technical reference for the Local Omni Knowledge Interface (LOKI) runtime environment.
+            </p>
+
+            <!-- Section: Introduction -->
+            <section id="introduction" class="mb-20">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-neon text-sm">01</span> Introduction
+                </h2>
+                <p class="text-zinc-400 leading-7 mb-4">
+                    LOKI is a local-first AI agent wrapper around Ollama. It bypasses cloud latency and privacy risks by
+                    executing LLM inference directly on user hardware. It features a custom context-mapping engine that
+                    recursively indexes codebases for higher-fidelity RAG (Retrieval-Augmented Generation).
                 </p>
-                <p><strong>Key Features:</strong></p>
-                <ul>
-                    <li>100% local processing with Ollama</li>
-                    <li>Interactive Terminal User Interface (TUI)</li>
-                    <li>WhatsApp integration for mobile access</li>
-                    <li>VS Code extension for in-editor assistance</li>
-                    <li>Built-in tools for file system, git, math, and more</li>
-                    <li>Conversation memory and context awareness</li>
-                </ul>
+            </section>
 
-                <h2 id="installation">Installation</h2>
+            <!-- Section: Installation -->
+            <section id="installation" class="mb-20">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-neon text-sm">02</span> Installation
+                </h2>
 
-                <h3>Prerequisites</h3>
-                <p>Before installing LOKI, you need to have the following:</p>
-                <ul>
-                    <li><strong>Node.js</strong> (v18 or higher) - <a href="https://nodejs.org" target="_blank"
-                            style="color: #fff;">Download here</a></li>
-                    <li><strong>Ollama</strong> - <a href="https://ollama.ai" target="_blank"
-                            style="color: #fff;">Download here</a></li>
-                </ul>
+                <div class="space-y-6">
+                    <div>
+                        <div class="text-xs text-zinc-500 uppercase mb-2">Step A: Runtime Dependencies</div>
+                        <p class="text-zinc-400 mb-3">Install Ollama daemon and pull the target model.</p>
+                        <pre class="overflow-x-auto p-4 text-xs md:text-sm text-zinc-300"><code>curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3</code></pre>
+                    </div>
 
-                <h3>Step 1: Install Ollama</h3>
-                <p>Download and install Ollama from <a href="https://ollama.ai" target="_blank"
-                        style="color: #fff;">ollama.ai</a>, then pull a model:</p>
-                <div class="code-block">ollama pull llama3</div>
-                <p>You can also use other models like <code class="code-inline">mistral</code>, <code
-                        class="code-inline">codellama</code>, or <code class="code-inline">phi</code>.</p>
-
-                <h3>Step 2: Install LOKI</h3>
-                <p>Install LOKI globally via npm:</p>
-                <div class="code-block">npm install -g @react-frameui/loki-ai</div>
-
-                <h3>Step 3: Verify Installation</h3>
-                <p>Check that LOKI is installed correctly:</p>
-                <div class="code-block">loki --version</div>
-
-                <h2 id="usage">Usage</h2>
-
-                <h3>Interactive TUI</h3>
-                <p>Launch the interactive menu by running:</p>
-                <div class="code-block">loki</div>
-                <p>This opens the main menu where you can:</p>
-                <ul>
-                    <li>Chat with LOKI</li>
-                    <li>Run agent workflows</li>
-                    <li>Index your repository</li>
-                    <li>Connect WhatsApp</li>
-                    <li>Run system diagnostics</li>
-                </ul>
-
-                <h3>Direct Chat</h3>
-                <p>Start a chat session directly:</p>
-                <div class="code-block">loki chat</div>
-                <p>Or ask a quick question:</p>
-                <div class="code-block">loki chat "what time is it?"</div>
-
-                <h2 id="commands">Commands</h2>
-
-                <h3>loki chat [message]</h3>
-                <p>Start an interactive chat session or send a single message.</p>
-                <div class="code-block">loki chat
-                    loki chat "explain this code"
-                    loki chat --agent explain
-                    loki chat --no-memory</div>
-                <p><strong>Options:</strong></p>
-                <ul>
-                    <li><code class="code-inline">-a, --agent &lt;name&gt;</code> - Choose agent: dev, explain, refactor
-                        (default: dev)</li>
-                    <li><code class="code-inline">--no-memory</code> - Disable conversation memory</li>
-                    <li><code class="code-inline">--no-stream</code> - Disable streaming output</li>
-                    <li><code class="code-inline">-f, --file &lt;path&gt;</code> - Add file to context</li>
-                    <li><code class="code-inline">-d, --dir &lt;path&gt;</code> - Add directory to context</li>
-                </ul>
-
-                <h3>loki doctor</h3>
-                <p>Run system health checks to verify Ollama connection and configuration.</p>
-                <div class="code-block">loki doctor</div>
-
-                <h3>loki index</h3>
-                <p>Index your current repository for better context awareness.</p>
-                <div class="code-block">loki index</div>
-
-                <h3>loki server</h3>
-                <p>Start the WhatsApp integration server.</p>
-                <div class="code-block">loki server</div>
-
-                <h2 id="whatsapp">WhatsApp Integration</h2>
-                <p>LOKI can integrate with WhatsApp, allowing you to chat with your AI assistant from your phone.</p>
-
-                <h3>Setup</h3>
-                <ol>
-                    <li>Start the WhatsApp server:
-                        <div class="code-block">loki server</div>
-                    </li>
-                    <li>A QR code will appear in your terminal</li>
-                    <li>Open WhatsApp on your phone → Settings → Linked Devices → Link a Device</li>
-                    <li>Scan the QR code</li>
-                    <li>Start chatting with LOKI!</li>
-                </ol>
-
-                <div class="note">
-                    <p><strong>Note:</strong> The WhatsApp integration runs a local server. Your messages are processed
-                        on your machine and never sent to external servers.</p>
+                    <div>
+                        <div class="text-xs text-zinc-500 uppercase mb-2">Step B: LOKI Core</div>
+                        <p class="text-zinc-400 mb-3">Install via NPM registry.</p>
+                        <pre
+                            class="overflow-x-auto p-4 text-xs md:text-sm text-zinc-300"><code>npm install -g @react-frameui/loki-ai</code></pre>
+                    </div>
                 </div>
+            </section>
 
-                <h3>Usage</h3>
-                <p>Once connected, you can message LOKI directly on WhatsApp:</p>
-                <ul>
-                    <li>Ask questions: "What time is it?"</li>
-                    <li>Get help: "How do I use git rebase?"</li>
-                    <li>Quick calculations: "What's 15% of 250?"</li>
-                </ul>
+            <!-- Section: Usage -->
+            <section id="usage" class="mb-20">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-neon text-sm">03</span> Usage Patterns
+                </h2>
 
-                <h2 id="vscode">VS Code Extension</h2>
-                <p>The LOKI VS Code extension brings AI assistance directly into your editor.</p>
+                <div class="grid gap-4">
+                    <div class="border border-zinc-800 bg-[#0a0a0a] p-4 rounded">
+                        <div class="text-neon font-bold text-sm mb-1">Interactive TUI</div>
+                        <code class="text-white text-xs">loki</code>
+                        <p class="text-zinc-500 text-xs mt-2">Launches the ncurses-like terminal interface.</p>
+                    </div>
 
-                <h3>Installation</h3>
-                <ol>
-                    <li>Open VS Code</li>
-                    <li>Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)</li>
-                    <li>Search for "LOKI AI Assistant"</li>
-                    <li>Click Install</li>
-                </ol>
-                <p>Or install from the <a
-                        href="https://marketplace.visualstudio.com/items?itemName=NishantUnavane.loki-ai-assistant"
-                        target="_blank" style="color: #fff;">VS Code Marketplace</a>.</p>
+                    <div class="border border-zinc-800 bg-[#0a0a0a] p-4 rounded">
+                        <div class="text-neon font-bold text-sm mb-1">Quick Query</div>
+                        <code class="text-white text-xs">loki chat "How do I reverse a binary tree?"</code>
+                        <p class="text-zinc-500 text-xs mt-2">One-shot inference command.</p>
+                    </div>
 
-                <h3>Features</h3>
-                <ul>
-                    <li><strong>Explain Code:</strong> Right-click on selected code → "LOKI: Explain Code Selection"
-                    </li>
-                    <li><strong>Chat:</strong> Open command palette (Ctrl+Shift+P) → "LOKI: Open Chat"</li>
-                </ul>
-
-                <h2 id="tools">Available Tools</h2>
-                <p>LOKI has built-in tools that it can use to help you:</p>
-
-                <h3>Time & Date</h3>
-                <ul>
-                    <li><code class="code-inline">get_time</code> - Get current time</li>
-                    <li><code class="code-inline">get_date</code> - Get current date</li>
-                </ul>
-
-                <h3>Math</h3>
-                <ul>
-                    <li><code class="code-inline">calculate</code> - Evaluate math expressions</li>
-                </ul>
-
-                <h3>File System</h3>
-                <ul>
-                    <li><code class="code-inline">list_files</code> - List files in a directory</li>
-                    <li><code class="code-inline">read_file</code> - Read file contents</li>
-                </ul>
-
-                <h3>Git</h3>
-                <ul>
-                    <li><code class="code-inline">git_status</code> - Get git status</li>
-                    <li><code class="code-inline">git_log</code> - Get recent commits</li>
-                    <li><code class="code-inline">git_diff</code> - Get git diff</li>
-                </ul>
-
-                <h2 id="configuration">Configuration</h2>
-                <p>LOKI can be configured using environment variables. Create a <code class="code-inline">.env</code>
-                    file in your project root:</p>
-
-                <div class="code-block"># Ollama Configuration
-                    OLLAMA_HOST=http://localhost:11434
-                    OLLAMA_MODEL=llama3
-
-                    # Optional: Groq API (for cloud fallback)
-                    GROQ_API_KEY=your_api_key_here</div>
-
-                <h3>Environment Variables</h3>
-                <ul>
-                    <li><code class="code-inline">OLLAMA_HOST</code> - Ollama server URL (default:
-                        http://localhost:11434)</li>
-                    <li><code class="code-inline">OLLAMA_MODEL</code> - Model to use (default: llama3)</li>
-                    <li><code class="code-inline">GROQ_API_KEY</code> - Optional Groq API key for cloud fallback</li>
-                </ul>
-
-                <h2 id="troubleshooting">Troubleshooting</h2>
-
-                <h3>LOKI doesn't respond</h3>
-                <p>Check if Ollama is running:</p>
-                <div class="code-block">ollama list</div>
-                <p>If Ollama isn't running, start it and ensure you have a model pulled:</p>
-                <div class="code-block">ollama pull llama3</div>
-
-                <h3>Connection refused error</h3>
-                <p>Make sure Ollama is running on the correct port (default: 11434). Run the doctor command:</p>
-                <div class="code-block">loki doctor</div>
-
-                <h3>WhatsApp QR code not appearing</h3>
-                <p>Ensure you have the required dependencies installed. Try reinstalling:</p>
-                <div class="code-block">npm install -g @react-frameui/loki-ai</div>
-
-                <h3>VS Code extension not working</h3>
-                <p>Make sure:</p>
-                <ul>
-                    <li>LOKI CLI is installed globally</li>
-                    <li>Ollama is running</li>
-                    <li>You've reloaded VS Code after installation</li>
-                </ul>
-
-                <div class="warning">
-                    <p><strong>Still having issues?</strong> Open an issue on <a
-                            href="https://github.com/IamNishant51/LOKI/issues" target="_blank"
-                            style="color: #fde047;">GitHub</a>.</p>
+                    <div class="border border-zinc-800 bg-[#0a0a0a] p-4 rounded">
+                        <div class="text-neon font-bold text-sm mb-1">System Diagnostic</div>
+                        <code class="text-white text-xs">loki doctor</code>
+                        <p class="text-zinc-500 text-xs mt-2">Verifies Ollama connectivity and model integrity.</p>
+                    </div>
                 </div>
+            </section>
 
-                <br><br>
-                <p style="color: #666; font-size: 14px;">
-                    Need more help? Check the <a href="https://github.com/IamNishant51/LOKI" target="_blank"
-                        style="color: #fff;">GitHub repository</a> or open an issue.
+            <!-- Section: WhatsApp -->
+            <section id="whatsapp" class="mb-20">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-neon text-sm">04</span> WhatsApp Bridge
+                </h2>
+                <p class="text-zinc-400 leading-7 mb-4">
+                    LOKI can spawn a headless WhatsApp Web instance to serve as a remote control.
                 </p>
-            </main>
-        </div>
+                <div class="bg-zinc-900/50 border-l-2 border-neon p-4 mb-4">
+                    <p class="text-zinc-300 text-sm">
+                        <strong class="text-white">Security Note:</strong> All messages are processed locally. No data
+                        is sent to Meta servers other than the encrypted message transport itself.
+                    </p>
+                </div>
+                <pre class="overflow-x-auto p-4 text-xs md:text-sm text-zinc-300"><code>loki server</code></pre>
+                <p class="text-zinc-500 text-sm mt-3">Scan the generated QR code with your mobile device to link.</p>
+            </section>
+
+            <!-- Footer -->
+            <div class="border-t border-white/5 pt-8 mt-12 text-xs text-zinc-600">
+                Documentation generated for v1.0.2
+            </div>
+
+        </main>
     </div>
 
     <script>
-        // Smooth scroll for sidebar links
-        document.querySelectorAll('.sidebar-links a').forEach(link => {
-            link.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Simple scroll spy logic
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('.nav-item');
 
-                    // Update active state
-                    document.querySelectorAll('.sidebar-links a').forEach(a => a.classList.remove('active'));
-                    this.classList.add('active');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active');
                 }
             });
         });
-
-        // Update active link on scroll
-        const sections = document.querySelectorAll('h2[id]');
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const id = entry.target.getAttribute('id');
-                    document.querySelectorAll('.sidebar-links a').forEach(a => {
-                        a.classList.remove('active');
-                        if (a.getAttribute('href') === `#${id}`) {
-                            a.classList.add('active');
-                        }
-                    });
-                }
-            });
-        }, { threshold: 0.5 });
-
-        sections.forEach(section => observer.observe(section));
     </script>
 </body>
 
