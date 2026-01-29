@@ -1,50 +1,29 @@
-# Development files
+# Exclude development source
 src/
-*.ts
-!*.d.ts
 tsconfig.json
-.env
-.env.*
+vercel.json
 
-# Test files
-test/
-tests/
-*.test.js
-*.spec.js
-
-# Documentation
+# Exclude documentation & landing page (Not needed for the CLI tool)
 docs/
-*.md
-!README.md
+CONTRIBUTING.md
+SECURITY.md
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-
-# Dependencies
-node_modules/
-
-# Build artifacts
-*.tgz
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Git
+# Exclude Git & Editor files
 .git/
 .gitignore
-.gitattributes
+.vscode/
 
-# VS Code Extension
+# Exclude sensitive data (Redundant safety net)
+.env
+.wwebjs_cache/
+baileys_auth_info/
+
+# Exclude tests
+test/
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Misc
+iamnishant51-loki-ai-*.tgz
 vscode-extension/
-
-# WhatsApp session data
-.loki/
