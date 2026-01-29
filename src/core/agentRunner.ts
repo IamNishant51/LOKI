@@ -135,14 +135,19 @@ Assistant:`;
     // We use generated promise wrapper to allow abort
     let initialResponse = await provider.generate(fullPrompt, undefined, options.signal);
 
-    // Check for JSON tool call
-    const toolRegex = /```json\s*(\{.*"tool":.*\})\s*```/s;
+    // Check for empty response
+    if (!initialResponse || initialResponse.trim() === '') {
+        throw new Error('LLM returned an empty response. Check if the model is loaded correctly.');
+    }
+
+    // Check for JSON tool call (support both markdown block and raw JSON)
+    const toolRegex = /(?:```json\s*)?(\{.*"tool":.*\})(?:\s*```)?/s;
     const match = initialResponse.match(toolRegex);
 
     if (match) {
         try {
             const toolCall = JSON.parse(match[1]);
-            if (options.onToken) options.onToken(`[Executing ${toolCall.tool}...] `);
+            if (options.onToken) options.onToken(`\u001b[33m[Executing ${toolCall.tool}...]\u001b[0m\n`);
 
             const toolResult = await executeToolCall(toolCall.tool, toolCall.args);
 
