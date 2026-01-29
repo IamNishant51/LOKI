@@ -1,52 +1,158 @@
-# LOKI (Local Omni Knowledge Interface)
+# 🧠 LOKI - Local Omni Knowledge Interface
 
-LOKI is a local-first, privacy-focused AI assistant for developers. It runs entirely on your machine using Ollama, with optional cloud acceleration.
+[![npm version](https://badge.fury.io/js/%40iamnishant51%2Floki-ai.svg)](https://www.npmjs.com/package/@iamnishant51/loki-ai)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+**LOKI** is a powerful, privacy-first AI assistant that runs entirely on your local machine. No cloud, no subscriptions, just pure local AI power.
 
-- 🧠 **Local Intelligence**: Uses `mistral:7b` by default. No API keys needed.
-- 💾 **Semantic Memory**: Remembers context across sessions using local vector embeddings.
-- 🛠 **Tool-Use**: Can manage files, run git commands, and calculate math.
-- 📂 **Project Awareness**: Understands your project structure and git history.
-- 🚀 **Extensible**: Add new tools and agents easily.
+## ✨ Features
 
-## Getting Started
+- 🔒 **100% Local** - Your data never leaves your machine
+- 💬 **WhatsApp Integration** - Chat with LOKI via WhatsApp
+- 🛠️ **Built-in Tools** - File system, math, time, and more
+- 🧠 **Memory** - Remembers your conversations
+- 🎨 **Beautiful TUI** - Intuitive terminal interface
+- ⚡ **LangChain Powered** - Use multiple LLM providers (Ollama, Groq, OpenAI)
+- 🔌 **VS Code Extension** - Available on the marketplace
 
-1. **Prerequisites**:
-   - Install [Ollama](https://ollama.com/)
-   - Pull the default model: `ollama pull mistral:7b`
-   - Pull the embedding model: `ollama pull nomic-embed-text`
+## 🚀 Quick Start
 
-2. **Installation**:
-   ```bash
-   git clone https://github.com/yourusername/loki.git
-   cd loki
-   npm install
-   ```
+```bash
+# Install globally
+npm install -g @iamnishant51/loki-ai
 
-3. **Usage**:
-   ```bash
-   # Chat
-   npm run dev -- chat "Help me fix this bug"
-   
-   # Interactive
-   npm run dev -- chat
-   
-   # Diagnose
-   npm run dev -- doctor
-   ```
+# Run LOKI
+loki
 
-## Privacy & Ethics
+# Or use npx (no install needed)
+npx @iamnishant51/loki-ai
+```
 
-LOKI is designed to protect your code and data.
-- **No telemetry**: We do not track your usage.
-- **Local Vectors**: Your memory database stays in `~/.loki`.
-- **Read-Only Tools**: LOKI defaults to reading data, not overwriting it without permission.
+## 📋 Prerequisites
 
-## Contributing
+- **Node.js** 18+
+- **Ollama** (for local LLM) - [Install here](https://ollama.ai)
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+## 🎯 Usage
 
-## License
+### Interactive TUI Mode
+```bash
+loki
+```
 
-MIT
+### Chat Mode
+```bash
+loki chat
+```
+
+### WhatsApp Integration
+```bash
+loki server
+```
+Then scan the QR code with WhatsApp!
+
+### Direct Questions
+```bash
+loki ask "What time is it?"
+```
+
+## 🛠️ Available Tools
+
+LOKI comes with built-in tools:
+
+- **📁 File System** - List files, read directories
+- **🧮 Math** - Calculate expressions
+- **⏰ Time** - Get current time
+- **💾 Memory** - Semantic and conversation memory
+- **🔍 RAG** - Index repositories for context-aware responses
+
+## 🔧 Configuration
+
+Create a `.env` file:
+
+```env
+# LLM Provider (ollama, groq, openai)
+LLM_PROVIDER=ollama
+
+# Ollama settings
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+
+# Optional: Groq API
+GROQ_API_KEY=your_groq_key
+
+# Optional: OpenAI API
+OPENAI_API_KEY=your_openai_key
+```
+
+## 📱 WhatsApp Integration
+
+1. Run `loki server`
+2. Scan QR code with WhatsApp
+3. Message yourself or share your number
+4. LOKI responds automatically!
+
+## 💻 VS Code Extension
+
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) - Search for "LOKI AI"
+
+Features:
+- Explain code selections
+- In-editor AI assistance
+- Context-aware suggestions
+
+## 🏗️ Development
+
+```bash
+# Clone repository
+git clone https://github.com/IamNishant51/LOKI.git
+cd LOKI
+
+# Install dependencies
+npm install
+
+# Run in dev mode
+npm run dev
+
+# Build
+npm run build
+```
+
+## 📦 Project Structure
+
+```
+loki-ai/
+├── src/
+│   ├── agents/         # AI agent configurations
+│   ├── cli/            # CLI & TUI interface
+│   ├── core/           # Core logic & agent runner
+│   ├── tools/          # Built-in tools
+│   ├── memory/         # Memory management
+│   ├── interfaces/     # WhatsApp, etc.
+│   └── index.ts        # Entry point
+├── vscode-extension/   # VS Code extension
+└── dist/               # Compiled output
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+MIT © Nishant
+
+## 🔗 Links
+
+- [GitHub](https://github.com/IamNishant51/LOKI)
+- [NPM Package](https://www.npmjs.com/package/@iamnishant51/loki-ai)
+- [VS Code Extension](https://marketplace.visualstudio.com/)
+- [Documentation](#) *(coming soon)*
+
+## ⭐ Show Your Support
+
+If you like LOKI, please give it a ⭐ on [GitHub](https://github.com/IamNishant51/LOKI)!
+
+---
+
+Made with ❤️ by [Nishant](https://github.com/IamNishant51)

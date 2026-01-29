@@ -1,19 +1,46 @@
 {
-  "name": "loki-cli",
-  "version": "1.1.0",
-  "description": "Local Omni Knowledge Interface - CLI AI Assistant",
+  "name": "@iamnishant51/loki-ai",
+  "version": "1.0.0",
+  "description": "LOKI - Local Omni Knowledge Interface. A powerful CLI AI assistant with tools, memory, WhatsApp integration, and more.",
+  "keywords": [
+    "ai",
+    "assistant",
+    "cli",
+    "chatbot",
+    "ollama",
+    "langchain",
+    "whatsapp",
+    "local-ai",
+    "tui",
+    "terminal"
+  ],
+  "homepage": "https://github.com/IamNishant51/LOKI#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IamNishant51/LOKI.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IamNishant51/LOKI/issues"
+  },
   "bin": {
     "loki": "./dist/index.js"
   },
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepublishOnly": "npm run build",
+    "test": "echo \"No tests yet\" && exit 0"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Nishant <iamnishant51@github.com>",
+  "license": "MIT",
   "dependencies": {
     "@langchain/community": "^1.1.9",
     "@langchain/core": "^1.1.17",
@@ -40,5 +67,8 @@
     "@types/body-parser": "^1.19.6",
     "@types/express": "^5.0.6",
     "@types/qrcode-terminal": "^0.12.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

@@ -85,9 +85,18 @@ export async function startWhatsAppClient() {
         const fromMe = msg.key.fromMe || false;
         const sender = msg.key.remoteJid || '';
 
-        console.log(chalk.magenta(`[MSG] ${sender}: "${text}" (fromMe: ${fromMe})`));
+        // Check if this is a self-chat (messaging yourself)
+        const isSelfChat = sender.includes('@lid') || sender === msg.key.participant;
 
-        // Skip LOKI's own responses (prevent infinite loop)
+        console.log(chalk.magenta(`[MSG] ${sender}: "${text}" (fromMe: ${fromMe}, selfChat: ${isSelfChat})`));
+
+        // CRITICAL: Only respond to incoming messages OR self-chat
+        if (fromMe && !isSelfChat) {
+            console.log(chalk.gray('  [Skipped - outgoing message to someone else]'));
+            return;
+        }
+
+        // Skip LOKI's own responses (double safety)
         if (text.startsWith('🧠') || text.startsWith('🏓') || text.startsWith('⚠️')) {
             return;
         }
