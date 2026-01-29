@@ -15,7 +15,8 @@ export interface RunOptions {
     fileContextPaths?: string[];
     stream?: boolean;
     onToken?: (token: string) => void;
-    signal?: AbortSignal; // New
+    signal?: AbortSignal;
+    isChat?: boolean; // For WhatsApp/chat - cleaner responses without JSON
 }
 
 /**
@@ -60,7 +61,46 @@ export async function agentRunner(userMessage: string, options: RunOptions = {})
         }
     }
 
-    const toolsBlock = `
+    // --- 2. BUILD PROMPT ---
+    const systemPrompt = getSystemPrompt(options.agent);
+
+    let fullPrompt: string;
+
+    if (options.isChat) {
+        // Chat mode (WhatsApp) - cleaner, conversational responses
+        const chatSystemPrompt = `You are LOKI, a friendly AI assistant chatting on WhatsApp.
+
+CRITICAL RULES:
+1. NEVER output JSON, code blocks (\`\`\`), or any programming syntax
+2. NEVER mention "tools", "commands", or technical implementation details
+3. Respond in plain, natural language only
+4. Be conversational, friendly, and concise
+5. Keep responses under 300 characters
+6. If asked about files/folders/system tasks, explain you can only help with those in the full CLI version
+7. For chat, focus on conversation, advice, information, and friendly assistance
+
+Remember: You are chatting casually. No technical output allowed.`;
+
+        fullPrompt = `${chatSystemPrompt}
+
+User: ${userMessage}
+Assistant:`;
+    } else {
+        // Full mode (CLI) - with tools and project context
+
+        // System Context - Real user info
+        const os = require('os');
+        const systemContext = `
+=== SYSTEM CONTEXT ===
+User: ${os.userInfo().username}
+Home Directory: ${os.homedir()}
+Desktop Path: ${os.homedir()}/Desktop
+Current Working Directory: ${process.cwd()}
+OS: ${os.platform()}
+======================
+`;
+
+        const toolsBlock = `
 === AVAILABLE TOOLS ===
 You can use tools by outputting a JSON block:
 \`\`\`json
@@ -70,14 +110,12 @@ ${getToolSchemas()}
 =======================
 If you use a tool, output ONLY the JSON block first. I will give you the result.
 Then you can answer the user.
-    `;
+        `;
 
-    // --- 2. BUILD PROMPT ---
-    const systemPrompt = getSystemPrompt(options.agent);
-
-    let fullPrompt = `
+        fullPrompt = `
 ${systemPrompt}
 
+${systemContext}
 ${projectBlock}
 ${semanticBlock}
 ${fileBlock}
@@ -86,6 +124,7 @@ ${historyBlock}
 
 User: ${userMessage}
 Assistant:`;
+    }
 
     // --- 3. EXECUTE ---
     if (options.signal?.aborted) throw new Error('Aborted');

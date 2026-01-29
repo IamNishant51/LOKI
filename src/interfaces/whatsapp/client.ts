@@ -115,22 +115,47 @@ export async function startWhatsAppClient() {
         console.log(chalk.yellow('→ Processing with LOKI AI...'));
 
         // Show "typing..." indicator to user
-        await sock.sendPresenceUpdate('composing', sender);
+        try {
+            await sock.presenceSubscribe(sender);
+            await sock.sendPresenceUpdate('composing', sender);
+            console.log(chalk.gray('  [typing indicator sent]'));
+        } catch (e) {
+            console.log(chalk.gray('  [typing indicator failed]'));
+        }
 
         try {
-            const response = await agentRunner(text, {
+            // Use FULL agent mode with tools enabled
+            const rawResponse = await agentRunner(text, {
                 useMemory: true,
-                stream: false
+                stream: false,
+                isChat: false  // Enable tools!
             });
 
-            // Stop typing indicator
-            await sock.sendPresenceUpdate('paused', sender);
+            // Clean up response - remove code blocks and JSON artifacts
+            let cleanResponse = rawResponse
+                .replace(/```json[\s\S]*?```/g, '') // Remove JSON blocks
+                .replace(/```[\s\S]*?```/g, '')     // Remove any code blocks
+                .replace(/\{[^{}]*"tool"[^{}]*\}/g, '') // Remove inline tool JSON
+                .replace(/\n{3,}/g, '\n\n')         // Collapse multiple newlines
+                .trim();
 
-            await sock.sendMessage(sender, { text: `🧠 ${response}` });
+            // If response is empty after cleanup, provide fallback
+            if (!cleanResponse) {
+                cleanResponse = "I've processed your request. Is there anything else you'd like to know?";
+            }
+
+            // Stop typing indicator
+            try {
+                await sock.sendPresenceUpdate('paused', sender);
+            } catch (e) { }
+
+            await sock.sendMessage(sender, { text: `🧠 ${cleanResponse}` });
             console.log(chalk.green('✓ Sent AI response'));
         } catch (e: any) {
             // Stop typing indicator on error too
-            await sock.sendPresenceUpdate('paused', sender);
+            try {
+                await sock.sendPresenceUpdate('paused', sender);
+            } catch (err) { }
 
             console.error(chalk.red('AI Error:'), e.message);
             await sock.sendMessage(sender, { text: `⚠️ Error: ${e.message}` });
