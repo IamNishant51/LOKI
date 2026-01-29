@@ -1,6 +1,6 @@
 {
   "name": "@react-frameui/loki-ai",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "LOKI - Local Omni Knowledge Interface. A powerful CLI AI assistant with tools, memory, WhatsApp integration, and more.",
   "keywords": [
     "ai",
