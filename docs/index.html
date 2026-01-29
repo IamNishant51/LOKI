@@ -174,7 +174,7 @@
 
     <!-- Minimal Header -->
     <nav
-        class="w-full py-8 px-6 md:px-12 flex justify-between items-center backdrop-blur-sm sticky top-0 z-50 border-b border-white/5">
+        class="w-full py-6 md:py-8 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center backdrop-blur-sm sticky top-0 z-50 border-b border-white/5 gap-4 md:gap-0">
         <div class="text-xl font-bold tracking-tighter text-white glitch cursor-default">
             LOKI<span class="text-neon">_</span>
         </div>
@@ -186,7 +186,7 @@
     </nav>
 
     <!-- Manifesto Hero -->
-    <main class="flex-grow flex flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto w-full pt-12 pb-32">
+    <main class="flex-grow flex flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto w-full pt-12 pb-20 md:pb-32">
 
         <!-- Status Line -->
         <div class="flex items-center gap-3 text-xs text-zinc-600 mb-8 font-mono">
@@ -200,7 +200,8 @@
 
             <!-- Left: The Manifesto -->
             <div>
-                <h1 class="text-5xl md:text-7xl font-bold text-white leading-tight tracking-tight mb-8">
+                <h1
+                    class="text-4xl sm:text-5xl md:text-7xl font-bold text-white leading-tight tracking-tight mb-6 md:mb-8">
                     Your Intelligence.<br>
                     <span class="text-zinc-500">Reclaimed.</span>
                 </h1>
@@ -262,14 +263,18 @@
     </main>
 
     <!-- The Architecture (Features) -->
-    <section class="border-t border-white/5 py-32 px-6 md:px-12 bg-black/50">
+    <section class="border-t border-white/5 py-20 md:py-32 px-6 md:px-12 bg-black/50">
         <div class="max-w-7xl mx-auto">
-            <h2 class="text-sm font-bold text-zinc-500 mb-16 uppercase tracking-widest">System Capabilities</h2>
+            <h2
+                class="text-sm font-bold text-zinc-500 mb-10 md:mb-16 uppercase tracking-widest text-center md:text-left">
+                System Capabilities</h2>
 
-            <div class="grid md:grid-cols-3 gap-1px bg-zinc-900 border border-zinc-900">
+            <div
+                class="grid md:grid-cols-3 gap-6 md:gap-px bg-transparent md:bg-zinc-900 border-none md:border border-zinc-900">
                 <!-- Using gaps for grid lines -->
 
-                <div class="bg-[#050505] p-10 hover:bg-[#0a0a0a] transition-colors group">
+                <div
+                    class="bg-[#050505] p-8 md:p-10 border border-zinc-800 md:border-none rounded-lg md:rounded-none hover:bg-[#0a0a0a] transition-colors group">
                     <div class="text-neon mb-6 text-xl">01</div>
                     <h3 class="text-white text-lg font-bold mb-3 group-hover:text-neon transition-colors">Local Runtime
                     </h3>
@@ -279,7 +284,8 @@
                     </p>
                 </div>
 
-                <div class="bg-[#050505] p-10 hover:bg-[#0a0a0a] transition-colors group">
+                <div
+                    class="bg-[#050505] p-8 md:p-10 border border-zinc-800 md:border-none rounded-lg md:rounded-none hover:bg-[#0a0a0a] transition-colors group">
                     <div class="text-neon mb-6 text-xl">02</div>
                     <h3 class="text-white text-lg font-bold mb-3 group-hover:text-neon transition-colors">WhatsApp
                         Bridge</h3>
@@ -289,7 +295,8 @@
                     </p>
                 </div>
 
-                <div class="bg-[#050505] p-10 hover:bg-[#0a0a0a] transition-colors group">
+                <div
+                    class="bg-[#050505] p-8 md:p-10 border border-zinc-800 md:border-none rounded-lg md:rounded-none hover:bg-[#0a0a0a] transition-colors group">
                     <div class="text-neon mb-6 text-xl">03</div>
                     <h3 class="text-white text-lg font-bold mb-3 group-hover:text-neon transition-colors">Context
                         Mapping</h3>
