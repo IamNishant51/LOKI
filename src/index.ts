@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Command } from 'commander';
 import { chatCommand } from './cli/chat';
 import { doctorCommand } from './cli/doctor';
