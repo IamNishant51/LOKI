@@ -1,261 +1,508 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOKI - Local Privacy-First AI</title>
-    <meta name="description" content="The privacy-first local AI assistant. Chat with code, zero cloud data.">
+    <title>LOKI - Local AI Assistant</title>
+    <meta name="description" content="Privacy-first AI assistant that runs entirely on your machine.">
 
-    <!-- Fonts: Inter + JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
-
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        background: '#09090b', // Zinc 950
-                        surface: '#18181b',    // Zinc 900
-                        border: '#27272a',     // Zinc 800
-                        accent: '#fafafa',     // Zinc 50
-                        muted: '#a1a1aa',      // Zinc 400
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.8s ease-out forwards',
-                        'slide-up': 'slideUp 0.8s ease-out forwards',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' },
-                        },
-                        slideUp: {
-                            '0%': { opacity: '0', transform: 'translateY(20px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: theme('colors.background');
-            color: theme('colors.accent');
-            /* Subtle Grain */
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Subtle Grid Pattern */
-        .bg-grid {
-            background-size: 40px 40px;
-            background-image: linear-gradient(to right, #27272a 1px, transparent 1px),
-                linear-gradient(to bottom, #27272a 1px, transparent 1px);
-            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
-            opacity: 0.2;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
         }
 
-        .btn-glow:hover {
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            z-index: 100;
         }
 
-        .card-hover {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 64px;
         }
 
-        .card-hover:hover {
-            border-color: #52525b;
-            transform: translateY(-2px);
+        .logo {
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #888;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 160px 0 80px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 64px;
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+        }
+
+        .hero .subtitle {
+            font-size: 20px;
+            color: #888;
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: #fff;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #e5e5e5;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #fff;
+            border: 1px solid #333;
+        }
+
+        .btn-secondary:hover {
+            border-color: #555;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            padding: 60px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Features */
+        .features {
+            padding: 100px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 60px;
+            letter-spacing: -1px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+        }
+
+        .feature-card {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 12px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: #333;
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-desc {
+            color: #888;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* Installation */
+        .installation {
+            padding: 80px 0;
+            background: #0a0a0a;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .install-steps {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .step {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-content h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .step-content p {
+            color: #888;
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+
+        .code-block {
+            background: #000;
+            border: 1px solid #1a1a1a;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+            color: #888;
+            overflow-x: auto;
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        footer .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 32px;
+        }
+
+        .footer-links a {
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #fff;
+        }
+
+        .copyright {
+            color: #666;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 40px;
+            }
+
+            .hero .subtitle {
+                font-size: 18px;
+            }
+
+            .cta-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .nav-links {
+                gap: 20px;
+            }
+
+            footer .container {
+                flex-direction: column;
+                text-align: center;
+            }
         }
     </style>
 </head>
 
-<body class="antialiased selection:bg-white selection:text-black">
-
-    <!-- Background Grid -->
-    <div class="fixed inset-0 bg-grid pointer-events-none z-[-1]"></div>
-
-    <!-- Nav -->
-    <nav class="fixed w-full z-50 border-b border-white/5 bg-background/80 backdrop-blur-md">
-        <div class="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
-            <a href="#" class="text-lg font-medium tracking-tight">LOKI</a>
-            <div class="flex gap-6 text-sm text-muted font-medium">
-                <a href="#features" class="hover:text-white transition-colors">Features</a>
-                <a href="https://github.com/IamNishant51/LOKI" target="_blank"
-                    class="hover:text-white transition-colors">GitHub</a>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <div class="logo">LOKI</div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="documentation.html">Docs</a>
+                <a href="https://github.com/IamNishant51/LOKI" target="_blank">GitHub</a>
             </div>
         </div>
     </nav>
 
     <!-- Hero -->
-    <main class="max-w-6xl mx-auto px-6 pt-32 pb-20 text-center">
-        <div
-            class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-muted mb-8 animate-fade-in">
-            <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-            v1.1.0 Released
-        </div>
-
-        <h1 class="text-5xl md:text-7xl font-semibold tracking-tight mb-8 bg-gradient-to-b from-white to-white/50 bg-clip-text text-transparent opacity-0 animate-slide-up"
-            style="animation-delay: 0.1s;">
-            Your Private <br> Local AI Brain.
-        </h1>
-
-        <p class="text-lg text-muted max-w-xl mx-auto mb-12 leading-relaxed opacity-0 animate-slide-up"
-            style="animation-delay: 0.2s;">
-            LOKI is an open-source AI assistant that lives on your machine. Chat with code, automate tasks, and keep
-            your data 100% local.
-        </p>
-
-        <div class="flex flex-col sm:flex-row justify-center items-center gap-4 opacity-0 animate-slide-up"
-            style="animation-delay: 0.3s;">
-            <div class="group relative">
-                <button onclick="copyInstall()"
-                    class="bg-white text-black px-6 py-3 rounded-lg font-mono text-sm font-medium flex items-center gap-3 btn-glow transition-all active:scale-95">
-                    <span class="opacity-60">$</span>
-                    <span id="installText">npm i -g @react-frameui/loki-ai</span>
-                    <i class="fa-regular fa-copy text-black/40 group-hover:text-black transition-colors"></i>
+    <section class="hero">
+        <div class="container">
+            <h1>Your Private<br>AI Assistant</h1>
+            <p class="subtitle">
+                LOKI runs entirely on your machine. Chat with your code, automate tasks, and integrate with
+                WhatsApp—without sending data to the cloud.
+            </p>
+            <div class="cta-group">
+                <button class="btn btn-primary" onclick="copyInstall()">
+                    <span>npm i -g @react-frameui/loki-ai</span>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                        </path>
+                    </svg>
                 </button>
-                <div id="copyTooltip"
-                    class="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-xs rounded opacity-0 transition-opacity">
-                    Copied!</div>
+                <a href="https://marketplace.visualstudio.com/items?itemName=NishantUnavane.loki-ai-assistant"
+                    target="_blank" class="btn btn-secondary">
+                    VS Code Extension
+                </a>
             </div>
-
-            <a href="https://marketplace.visualstudio.com/items?itemName=NishantUnavane.loki-ai-assistant"
-                target="_blank"
-                class="px-6 py-3 rounded-lg border border-white/10 text-sm font-medium hover:bg-white/5 transition-colors flex items-center gap-2">
-                <i class="fa-brands fa-microsoft text-zinc-400"></i>
-                VS Code Extension
-            </a>
         </div>
-    </main>
+    </section>
 
-    <!-- UI Preview (Minimal Terminal) -->
-    <section class="max-w-4xl mx-auto px-6 mb-32 opacity-0 animate-slide-up" style="animation-delay: 0.4s;">
-        <div class="rounded-xl border border-white/10 bg-surface/50 backdrop-blur shadow-2xl overflow-hidden">
-            <div class="px-4 py-3 border-b border-white/5 flex gap-2">
-                <div class="w-3 h-3 rounded-full bg-zinc-700"></div>
-                <div class="w-3 h-3 rounded-full bg-zinc-700"></div>
-                <div class="w-3 h-3 rounded-full bg-zinc-700"></div>
+    <!-- Stats -->
+    <section class="container">
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value">100%</div>
+                <div class="stat-label">Local Processing</div>
             </div>
-            <div class="p-6 font-mono text-sm leading-relaxed">
-                <div class="flex gap-3 mb-4">
-                    <span class="text-green-500">➜</span>
-                    <span class="text-muted">loki chat</span>
+            <div class="stat">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Cloud Dependencies</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">Open</div>
+                <div class="stat-label">Source (MIT)</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Everything You Need</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">Privacy First</h3>
+                    <p class="feature-desc">
+                        Powered by Ollama running locally. Your code and conversations never leave your machine.
+                    </p>
                 </div>
-                <div class="mb-6">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-blue-400 font-bold">USER</span>
-                        <span class="text-zinc-300">Explain the auth login logic in this file?</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <span class="text-purple-400 font-bold">LOKI</span>
-                        <div class="text-muted">
-                            <p class="mb-2">I see you're looking at <span class="text-zinc-300">auth.ts</span>. The
-                                login function follows these steps:</p>
-                            <ul class="list-disc pl-4 space-y-1">
-                                <li>Validates the Zod schema for email/password.</li>
-                                <li>Checks the database for the user record.</li>
-                                <li>Compares the bcrypt hash of the password.</li>
-                            </ul>
-                        </div>
-                    </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3 class="feature-title">WhatsApp Integration</h3>
+                    <p class="feature-desc">
+                        Scan a QR code and chat with LOKI from your phone. Perfect for quick questions on the go.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Lightning Fast</h3>
+                    <p class="feature-desc">
+                        No API latency. Works offline. Get instant responses without waiting for cloud servers.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🛠️</div>
+                    <h3 class="feature-title">Built-in Tools</h3>
+                    <p class="feature-desc">
+                        File system access, git operations, math calculations, and time utilities out of the box.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3 class="feature-title">Context Aware</h3>
+                    <p class="feature-desc">
+                        Indexes your repository to understand project structure, dependencies, and coding patterns.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔌</div>
+                    <h3 class="feature-title">VS Code Extension</h3>
+                    <p class="feature-desc">
+                        Explain code, refactor functions, and chat without leaving your editor.
+                    </p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Bento Grid Features -->
-    <section id="features" class="max-w-6xl mx-auto px-6 pb-32">
-        <h2 class="text-2xl font-semibold mb-12 text-center">Engineered for Privacy</h2>
+    <!-- Installation -->
+    <section class="installation">
+        <div class="container">
+            <h2 class="section-title">Get Started in 3 Steps</h2>
+            <div class="install-steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Install Ollama</h3>
+                        <p>Download from <a href="https://ollama.ai" target="_blank"
+                                style="color: #fff; text-decoration: underline;">ollama.ai</a> and pull a model:</p>
+                        <div class="code-block">ollama pull llama3</div>
+                    </div>
+                </div>
 
-        <div class="grid md:grid-cols-3 gap-6">
-            <!-- Large Card -->
-            <div class="md:col-span-2 p-8 rounded-2xl border border-border bg-surface/30 card-hover">
-                <div class="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center mb-6">
-                    <i class="fa-solid fa-server text-white"></i>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Install LOKI</h3>
+                        <p>Install globally via npm:</p>
+                        <div class="code-block">npm install -g @react-frameui/loki-ai</div>
+                    </div>
                 </div>
-                <h3 class="text-xl font-medium mb-2">100% Local Intelligence</h3>
-                <p class="text-muted">
-                    LOKI relies on Ollama running on your metal. No API keys, no monthly bills, and zero data leakage.
-                    It works offline, on airplanes, or in air-gapped environments.
-                </p>
-            </div>
 
-            <!-- Tall Card -->
-            <div class="md:row-span-2 p-8 rounded-2xl border border-border bg-surface/30 card-hover">
-                <div class="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center mb-6">
-                    <i class="fa-brands fa-whatsapp text-white"></i>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Start Chatting</h3>
+                        <p>Launch the interactive TUI:</p>
+                        <div class="code-block">loki</div>
+                    </div>
                 </div>
-                <h3 class="text-xl font-medium mb-2">WhatsApp Bridge</h3>
-                <p class="text-muted mb-6">
-                    Sync LOKI with WhatsApp to chat with your assistant from your phone. It uses a secure local tunnel.
-                </p>
-                <div class="rounded-lg bg-black/50 p-4 font-mono text-xs text-zinc-500">
-                    > loki server<br>
-                    [+] WhatsApp server started<br>
-                    [+] Scan QR code...
-                </div>
-            </div>
-
-            <!-- Small Card 1 -->
-            <div class="p-8 rounded-2xl border border-border bg-surface/30 card-hover">
-                <div class="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center mb-6">
-                    <i class="fa-solid fa-code-branch text-white"></i>
-                </div>
-                <h3 class="text-lg font-medium mb-2">Context Aware</h3>
-                <p class="text-muted text-sm">
-                    LOKI indexes your repository to understand project structure, dependencies, and style.
-                </p>
-            </div>
-
-            <!-- Small Card 2 -->
-            <div class="p-8 rounded-2xl border border-border bg-surface/30 card-hover">
-                <div class="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center mb-6">
-                    <i class="fa-solid fa-bolt text-white"></i>
-                </div>
-                <h3 class="text-lg font-medium mb-2">Instant Tools</h3>
-                <p class="text-muted text-sm">
-                    Built-in access to file system, git operations, math, and time utilities.
-                </p>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="border-t border-white/5 py-12 text-center text-sm text-muted">
-        <p class="mb-4">© 2026 Nishant Unavane. MIT License.</p>
-        <div class="flex justify-center gap-6">
-            <a href="https://github.com/IamNishant51/LOKI" class="hover:text-white transition-colors">GitHub</a>
-            <a href="https://npmjs.com/package/@react-frameui/loki-ai"
-                class="hover:text-white transition-colors">NPM</a>
-            <a href="#" class="hover:text-white transition-colors">Twitter</a>
+    <footer>
+        <div class="container">
+            <div class="copyright">
+                © 2026 Nishant Unavane. MIT License.
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/IamNishant51/LOKI" target="_blank">GitHub</a>
+                <a href="https://www.npmjs.com/package/@react-frameui/loki-ai" target="_blank">NPM</a>
+                <a href="https://marketplace.visualstudio.com/items?itemName=NishantUnavane.loki-ai-assistant"
+                    target="_blank">VS Code</a>
+                <a href="documentation.html">Documentation</a>
+            </div>
         </div>
     </footer>
 
     <script>
         function copyInstall() {
-            const text = document.getElementById('installText').innerText;
-            navigator.clipboard.writeText(text);
-
-            const tooltip = document.getElementById('copyTooltip');
-            tooltip.style.opacity = '1';
-            setTimeout(() => tooltip.style.opacity = '0', 2000);
+            const text = 'npm i -g @react-frameui/loki-ai';
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.currentTarget;
+                const originalText = btn.querySelector('span').textContent;
+                btn.querySelector('span').textContent = 'Copied!';
+                setTimeout(() => {
+                    btn.querySelector('span').textContent = originalText;
+                }, 2000);
+            });
         }
     </script>
 </body>
