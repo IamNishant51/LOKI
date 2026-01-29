@@ -1,0 +1,50 @@
+# Development files
+src/
+*.ts
+!*.d.ts
+tsconfig.json
+.env
+.env.*
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+*.tgz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# VS Code Extension
+vscode-extension/
+
+# WhatsApp session data
+.loki/

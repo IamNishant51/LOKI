@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOKI - Local Omni Knowledge Interface</title>
+    <meta name="description"
+        content="A powerful, privacy-first AI assistant that runs entirely on your local machine. No cloud, no subscriptions.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #e0e0e0;
+            background: #0a0a0a;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header/Hero */
+        header {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect fill="rgba(255,255,255,0.05)" width="100" height="100"/><path d="M0 0L100 100M100 0L0 100" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></svg>');
+            opacity: 0.5;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            font-size: 5rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: #fff;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 5rem 0;
+            background: #0f0f0f;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: #1a1a1a;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid #333;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Code Section */
+        .install {
+            padding: 5rem 0;
+            background: #000;
+            text-align: center;
+        }
+
+        .install h2 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        pre {
+            background: #1a1a1a;
+            padding: 2rem;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            display: inline-block;
+            text-align: left;
+            border: 1px solid #333;
+        }
+
+        code {
+            color: #a6e22e;
+        }
+
+        /* Footer */
+        footer {
+            background: #0a0a0a;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #333;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .social-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 3rem;
+            }
+
+            .tagline {
+                font-size: 1.2rem;
+            }
+
+            .features h2,
+            .install h2 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="hero-content">
+            <h1>🧠 LOKI</h1>
+            <p class="tagline">Local Omni Knowledge Interface</p>
+            <p style="font-size: 1.2rem; margin-bottom: 2rem;">
+                A powerful, privacy-first AI assistant that runs entirely on your machine.<br>
+                No cloud. No subscriptions. Just pure local AI power.
+            </p>
+            <div class="cta-buttons">
+                <a href="https://www.npmjs.com/package/@iamnishant51/loki-ai" class="btn btn-primary">Install via
+                    NPM</a>
+                <a href="https://github.com/IamNishant51/LOKI" class="btn btn-secondary">View on GitHub</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="features">
+        <div class="container">
+            <h2>✨ Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>100% Local</h3>
+                    <p>Your data never leaves your machine. Complete privacy and security.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3>WhatsApp Integration</h3>
+                    <p>Chat with LOKI directly from WhatsApp. QR code authentication included.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛠️</div>
+                    <h3>Built-in Tools</h3>
+                    <p>File system access, math calculations, time utilities, and more.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>Smart Memory</h3>
+                    <p>Remembers your conversations and learns from context.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Beautiful TUI</h3>
+                    <p>Intuitive terminal interface with interactive menu system.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Multiple LLMs</h3>
+                    <p>Supports Ollama, Groq, OpenAI, and more providers.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="install">
+        <div class="container">
+            <h2>🚀 Quick Start</h2>
+            <pre><code>npm install -g @iamnishant51/loki-ai
+loki</code></pre>
+            <p style="margin-top: 2rem; font-size: 1.1rem;">
+                Or try it instantly with: <code>npx @iamnishant51/loki-ai</code>
+            </p>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 LOKI AI. Made with ❤️ by <a href="https://github.com/IamNishant51"
+                    style="color: #667eea;">Nishant</a></p>
+            <div class="social-links">
+                <a href="https://github.com/IamNishant51/LOKI">GitHub</a>
+                <a href="https://www.npmjs.com/package/@iamnishant51/loki-ai">NPM</a>
+                <a href="https://marketplace.visualstudio.com/">VS Code</a>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
