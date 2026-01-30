@@ -1,14 +1,11 @@
 {
     "name": "loki-ai-assistant",
-    "displayName": "LOKI AI - Local AI Assistant",
-    "description": "Intelligent AI assistant powered by local LLMs. Explain code, chat with AI, and boost your productivity - all without leaving VS Code!",
-    "version": "1.1.0",
+    "displayName": "LOKI - Ultimate Local AI Coding Agent",
+    "description": "Privacy-first, fully local autonomous coding assistant. Copilot-style inline completions, chat sidebar, and autonomous agent — powered by Ollama. No cloud. No telemetry.",
+    "version": "3.0.0",
     "publisher": "NishantUnavane",
     "icon": "icon.png",
-    "galleryBanner": {
-        "color": "#1e1e1e",
-        "theme": "dark"
-    },
+    "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/IamNishant51/LOKI.git"
@@ -16,7 +13,6 @@
     "bugs": {
         "url": "https://github.com/IamNishant51/LOKI/issues"
     },
-    "license": "MIT",
     "engines": {
         "vscode": "^1.80.0"
     },
@@ -27,43 +23,152 @@
     ],
     "keywords": [
         "ai",
-        "assistant",
+        "copilot",
+        "local",
         "ollama",
-        "local-llm",
-        "code-explanation",
-        "productivity"
+        "autonomous",
+        "privacy",
+        "code-completion"
     ],
-    "activationEvents": [],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
     "main": "./out/extension.js",
     "contributes": {
         "commands": [
             {
-                "command": "loki.explainSelection",
-                "title": "LOKI: Explain Code Selection"
+                "command": "loki.openChat",
+                "title": "LOKI: Open Chat"
             },
             {
-                "command": "loki.chat",
-                "title": "LOKI: Open Chat"
+                "command": "loki.explainCode",
+                "title": "LOKI: Explain Selection"
+            },
+            {
+                "command": "loki.refactorCode",
+                "title": "LOKI: Refactor Selection"
+            },
+            {
+                "command": "loki.generateTests",
+                "title": "LOKI: Generate Tests"
+            },
+            {
+                "command": "loki.fixCode",
+                "title": "LOKI: Fix Bugs"
+            },
+            {
+                "command": "loki.toggleCompletions",
+                "title": "LOKI: Toggle Inline Completions"
+            },
+            {
+                "command": "loki.healthCheck",
+                "title": "LOKI: Check Ollama Connection"
             }
         ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "loki-sidebar",
+                    "title": "LOKI AI",
+                    "icon": "$(comment-discussion)"
+                }
+            ]
+        },
+        "views": {
+            "loki-sidebar": [
+                {
+                    "type": "webview",
+                    "id": "loki.chatView",
+                    "name": "Chat",
+                    "icon": "$(comment-discussion)"
+                }
+            ]
+        },
         "menus": {
             "editor/context": [
                 {
-                    "command": "loki.explainSelection",
-                    "group": "navigation"
+                    "command": "loki.explainCode",
+                    "group": "loki@1",
+                    "when": "editorHasSelection"
+                },
+                {
+                    "command": "loki.refactorCode",
+                    "group": "loki@2",
+                    "when": "editorHasSelection"
+                },
+                {
+                    "command": "loki.fixCode",
+                    "group": "loki@3",
+                    "when": "editorHasSelection"
                 }
             ]
+        },
+        "keybindings": [
+            {
+                "command": "loki.openChat",
+                "key": "ctrl+shift+l",
+                "mac": "cmd+shift+l"
+            },
+            {
+                "command": "loki.toggleCompletions",
+                "key": "ctrl+shift+;",
+                "mac": "cmd+shift+;"
+            }
+        ],
+        "configuration": {
+            "title": "LOKI AI",
+            "properties": {
+                "loki.ollamaUrl": {
+                    "type": "string",
+                    "default": "http://localhost:11434",
+                    "description": "Ollama server URL (must be localhost for privacy)"
+                },
+                "loki.model": {
+                    "type": "string",
+                    "default": "codellama",
+                    "description": "Default Ollama model for chat and code actions"
+                },
+                "loki.completionModel": {
+                    "type": "string",
+                    "default": "codellama",
+                    "description": "Model for inline completions (use smaller/faster model)"
+                },
+                "loki.enableCompletions": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable inline code completions (ghost text)"
+                },
+                "loki.completionDebounce": {
+                    "type": "number",
+                    "default": 300,
+                    "minimum": 100,
+                    "maximum": 1000,
+                    "description": "Debounce delay (ms) before triggering completion"
+                },
+                "loki.autonomousAutoApprove": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Auto-approve file modifications (DANGEROUS - creates backups)"
+                }
+            }
         }
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
-        "package": "vsce package"
+        "build": "npm run compile",
+        "test": "jest",
+        "package": "vsce package",
+        "vscode:prepublish": "npm run compile"
     },
+    "dependencies": {},
     "devDependencies": {
+        "@types/node": "^20.0.0",
         "@types/vscode": "^1.80.0",
-        "typescript": "^5.0.0",
-        "@vscode/vsce": "^3.0.0"
+        "@vscode/vsce": "^3.0.0",
+        "jest": "^29.0.0",
+        "@types/jest": "^29.0.0",
+        "ts-jest": "^29.0.0",
+        "typescript": "^5.0.0"
     }
 }
