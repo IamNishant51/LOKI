@@ -26,6 +26,7 @@ export interface OllamaGenerateOptions {
         num_predict?: number;
         stop?: string[];
     };
+    abortSignal?: AbortSignalWrapper;
 }
 
 export interface OllamaStreamChunk {
@@ -175,6 +176,13 @@ export async function generate(options: OllamaGenerateOptions): Promise<string> 
                 reject(new Error('Request timeout'));
             });
 
+            if (options.abortSignal) {
+                options.abortSignal.onAbort(() => {
+                    req.destroy();
+                    reject(new Error('Aborted'));
+                });
+            }
+
             req.write(postData);
             req.end();
         } catch (e) {
@@ -249,7 +257,26 @@ export async function* generateStream(
 /**
  * Cancel helper - creates an abort signal object
  */
-export function createAbortSignal(): { aborted: boolean; abort: () => void } {
-    const signal = { aborted: false, abort: () => { signal.aborted = true; } };
+export interface AbortSignalWrapper {
+    aborted: boolean;
+    abort: () => void;
+    onAbort: (cb: () => void) => void;
+}
+
+export function createAbortSignal(): AbortSignalWrapper {
+    let listeners: (() => void)[] = [];
+    const signal = {
+        aborted: false,
+        abort: () => {
+            if (signal.aborted) return;
+            signal.aborted = true;
+            listeners.forEach(cb => cb());
+            listeners = [];
+        },
+        onAbort: (cb: () => void) => {
+            if (signal.aborted) cb();
+            else listeners.push(cb);
+        }
+    };
     return signal;
 }

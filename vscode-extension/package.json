@@ -38,23 +38,37 @@
         "commands": [
             {
                 "command": "loki.openChat",
-                "title": "LOKI: Open Chat"
+                "title": "LOKI: Open Chat",
+                "icon": "$(comment-discussion)"
+            },
+            {
+                "command": "loki.selectModel",
+                "title": "LOKI: Select Model"
             },
             {
                 "command": "loki.explainCode",
-                "title": "LOKI: Explain Selection"
+                "title": "LOKI: Explain Selection",
+                "icon": "$(question)"
             },
             {
                 "command": "loki.refactorCode",
-                "title": "LOKI: Refactor Selection"
+                "title": "LOKI: Refactor Selection",
+                "icon": "$(edit)"
             },
             {
                 "command": "loki.generateTests",
-                "title": "LOKI: Generate Tests"
+                "title": "LOKI: Generate Tests",
+                "icon": "$(beaker)"
             },
             {
                 "command": "loki.fixCode",
-                "title": "LOKI: Fix Bugs"
+                "title": "LOKI: Fix Bugs",
+                "icon": "$(wrench)"
+            },
+            {
+                "command": "loki.addDocs",
+                "title": "LOKI: Add Documentation",
+                "icon": "$(book)"
             },
             {
                 "command": "loki.toggleCompletions",
@@ -63,6 +77,10 @@
             {
                 "command": "loki.healthCheck",
                 "title": "LOKI: Check Ollama Connection"
+            },
+            {
+                "command": "loki.clearDecorations",
+                "title": "LOKI: Clear Modification Markers"
             }
         ],
         "viewsContainers": {
@@ -70,7 +88,7 @@
                 {
                     "id": "loki-sidebar",
                     "title": "LOKI AI",
-                    "icon": "$(comment-discussion)"
+                    "icon": "$(hubot)"
                 }
             ]
         },
@@ -99,6 +117,16 @@
                 {
                     "command": "loki.fixCode",
                     "group": "loki@3",
+                    "when": "editorHasSelection"
+                },
+                {
+                    "command": "loki.addDocs",
+                    "group": "loki@4",
+                    "when": "editorHasSelection"
+                },
+                {
+                    "command": "loki.generateTests",
+                    "group": "loki@5",
                     "when": "editorHasSelection"
                 }
             ]

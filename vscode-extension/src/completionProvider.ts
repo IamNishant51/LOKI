@@ -10,15 +10,19 @@
 
 import * as vscode from 'vscode';
 import { LokiAgent } from './lokiAgent';
+import { ContextManager } from './contextManager';
 import * as ollamaClient from './ollamaClient';
 
 export class LokiCompletionProvider implements vscode.InlineCompletionItemProvider {
     private agent: LokiAgent;
-    private currentAbort: { aborted: boolean; abort: () => void } | null = null;
+    private contextManager: ContextManager;
+    private currentAbort: ollamaClient.AbortSignalWrapper | null = null;
     private debounceTimer: NodeJS.Timeout | null = null;
+    private pendingResolve: ((value: vscode.InlineCompletionList | null) => void) | null = null;
 
     constructor(agent: LokiAgent) {
         this.agent = agent;
+        this.contextManager = new ContextManager();
     }
 
     async provideInlineCompletionItems(
@@ -31,13 +35,24 @@ export class LokiCompletionProvider implements vscode.InlineCompletionItemProvid
         if (!config.get<boolean>('enableCompletions')) return null;
 
         // Cancel previous request
-        if (this.currentAbort) this.currentAbort.abort();
+        if (this.currentAbort) {
+            this.currentAbort.abort();
+            this.currentAbort = null;
+        }
+
+        // Resolve previous pending promise to prevent memory leaks/hanging
+        if (this.pendingResolve) {
+            this.pendingResolve(null);
+            this.pendingResolve = null;
+        }
         if (this.debounceTimer) clearTimeout(this.debounceTimer);
 
         const debounceMs = config.get<number>('completionDebounce') || 300;
 
         return new Promise((resolve) => {
+            this.pendingResolve = resolve;
             this.debounceTimer = setTimeout(async () => {
+                this.pendingResolve = null; // Clear ref as we are executing
                 if (token.isCancellationRequested) {
                     resolve(null);
                     return;
@@ -62,23 +77,12 @@ export class LokiCompletionProvider implements vscode.InlineCompletionItemProvid
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<string | null> {
-        // Get context window
-        const startLine = Math.max(0, position.line - 15);
-        const endLine = Math.min(document.lineCount - 1, position.line + 3);
-
-        const prefix = document.getText(new vscode.Range(
-            new vscode.Position(startLine, 0),
-            position
-        ));
-
-        const suffix = document.getText(new vscode.Range(
-            position,
-            new vscode.Position(endLine, 0)
-        ));
+        // 1. Get rich, workspace-aware context
+        const { prefix, suffix, supportingContext } = this.contextManager.getRichContext(document, position);
 
         // Weak context check: require at least some meaningful code
         const trimmedPrefix = prefix.trim();
-        if (trimmedPrefix.length < 10) return null;
+        if (trimmedPrefix.length < 10 && supportingContext.length < 10) return null;
 
         // Don't complete inside comments or strings (basic check)
         const currentLine = document.lineAt(position.line).text;
@@ -92,13 +96,22 @@ export class LokiCompletionProvider implements vscode.InlineCompletionItemProvid
             const config = vscode.workspace.getConfiguration('loki');
             const model = config.get<string>('completionModel') || 'codellama';
 
+            // 2. Construct a more sophisticated prompt with a system message
+            const systemPrompt = `You are an expert code completion AI. Your purpose is to provide the next logical chunk of code.
+You will be given the code before the cursor (prefix), the code after the cursor (suffix), and some additional context from other open files.
+Complete the code in the <|fim_middle|> block. Do not repeat the prefix or suffix. Keep your response concise, relevant, and high-quality.
+
+Here is some additional context from other open files:${supportingContext ? supportingContext : " None."}`;
+
             const completion = await ollamaClient.generate({
                 model,
-                prompt: `<|fim_prefix|>${prefix}<|fim_suffix|>${suffix}<|fim_middle|>`,
+                prompt: `<|fim_prefix|>${prefix}<|fim_suffix|>${suffix}<|fim_middle|>`, // Fill-in-the-middle format
+                system: systemPrompt,
+                abortSignal: this.currentAbort,
                 options: {
                     temperature: 0.1,
                     num_predict: 80, // ~8 lines max
-                    stop: ['\n\n', '```', '\n\n\n']
+                    stop: ['\n\n', '```', '\n\n\n', '<|file_separator|>']
                 }
             });
 

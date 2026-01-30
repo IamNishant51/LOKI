@@ -1,12 +1,13 @@
 /**
- * chatViewProvider.ts - LOKI Chat Sidebar (Copilot-Killer Edition)
+ * chatViewProvider.ts - Copilot-Level Chat Sidebar
  * 
  * Features:
- * - Chat history with persistence
- * - Professional UI/UX
- * - Better markdown rendering
- * - Smooth animations
- * - Context menu for history
+ * - Typing animation (character-by-character)
+ * - Code blocks with Insert/Copy buttons
+ * - Slash commands (/explain, /fix, /tests, /doc, /clear, /new)
+ * - VS Code theme integration
+ * - Chat history persistence
+ * - Smooth animations and auto-scroll
  */
 
 import * as vscode from 'vscode';
@@ -19,6 +20,7 @@ interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
+    codeBlocks?: { language: string; code: string }[];
 }
 
 interface ChatSession {
@@ -29,25 +31,65 @@ interface ChatSession {
     updatedAt: number;
 }
 
+// Slash command definitions
+const SLASH_COMMANDS: { [key: string]: { description: string; prompt: string } } = {
+    '/explain': {
+        description: 'Explain the selected code',
+        prompt: 'Explain this code in detail. What does it do, how does it work, and what are the key concepts?'
+    },
+    '/fix': {
+        description: 'Fix errors in the code',
+        prompt: 'Find and fix any bugs, errors, or issues in this code. Explain what was wrong and provide the corrected code.'
+    },
+    '/tests': {
+        description: 'Generate unit tests',
+        prompt: 'Generate comprehensive unit tests for this code. Include edge cases and use a popular testing framework.'
+    },
+    '/doc': {
+        description: 'Add documentation',
+        prompt: 'Add detailed documentation comments to this code. Include JSDoc/docstrings with parameter descriptions and examples.'
+    },
+    '/refactor': {
+        description: 'Refactor for better quality',
+        prompt: 'Refactor this code to improve readability, performance, and maintainability. Follow best practices.'
+    },
+    '/optimize': {
+        description: 'Optimize performance',
+        prompt: 'Optimize this code for better performance. Identify bottlenecks and improve efficiency.'
+    },
+    '/clear': {
+        description: 'Start a new chat',
+        prompt: ''
+    },
+    '/new': {
+        description: 'Create a new file',
+        prompt: 'Create a new file with the following requirements:'
+    }
+};
+
 export class LokiChatViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'loki.chatView';
     private _view?: vscode.WebviewView;
     private currentSession: ChatSession | null = null;
     private sessions: ChatSession[] = [];
     private historyFile: string;
+    private modifiedFiles: Set<string> = new Set();
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly agent: LokiAgent,
         private readonly context: vscode.ExtensionContext
     ) {
-        // Use global storage for history (persists across workspaces)
         const globalStoragePath = context.globalStorageUri.fsPath;
         if (!fs.existsSync(globalStoragePath)) {
             fs.mkdirSync(globalStoragePath, { recursive: true });
         }
         this.historyFile = path.join(globalStoragePath, 'chat-history.json');
         this.loadHistory();
+    }
+
+    getModifiedFiles(): Set<string> {
+        return this.modifiedFiles;
     }
 
     resolveWebviewView(webviewView: vscode.WebviewView) {
@@ -58,42 +100,91 @@ export class LokiChatViewProvider implements vscode.WebviewViewProvider {
             localResourceRoots: [this._extensionUri]
         };
 
-        webviewView.webview.html = this.getHtml();
+        webviewView.webview.html = this.getHtmlContent();
 
         webviewView.webview.onDidReceiveMessage(async (msg) => {
             switch (msg.type) {
-                case 'send':
-                    await this.handleUserMessage(msg.text);
+                case 'chat':
+                    await this.handleChatMessage(msg.text);
+                    break;
+                case 'insertCode':
+                    await this.insertCodeAtCursor(msg.code);
+                    break;
+                case 'copyCode':
+                    await vscode.env.clipboard.writeText(msg.code);
+                    this.post({ type: 'toast', message: 'Copied to clipboard!' });
                     break;
                 case 'newChat':
-                    this.createNewSession();
+                    this.startNewSession();
                     break;
                 case 'loadSession':
-                    this.loadSession(msg.sessionId);
+                    this.loadSession(msg.id);
                     break;
                 case 'deleteSession':
-                    this.deleteSession(msg.sessionId);
+                    this.deleteSession(msg.id);
                     break;
-                case 'refreshModels':
-                    await this.loadModels();
-                    break;
-                case 'changeModel':
-                    await this.changeModel(msg.model);
-                    break;
-                case 'requestHistory':
+                case 'getHistory':
                     this.sendHistory();
+                    break;
+                case 'getSlashCommands':
+                    this.post({ type: 'slashCommands', commands: SLASH_COMMANDS });
                     break;
                 case 'pickImage':
                     await this.pickImage();
                     break;
+                case 'getContext':
+                    await this.sendEditorContext();
+                    break;
             }
         });
 
-        this.loadModels();
-        this.createNewSession();
+        // Start new session if none exists
+        if (!this.currentSession) {
+            this.startNewSession();
+        }
+
+        // Send initial data
+        this.sendHistory();
+        this.post({ type: 'slashCommands', commands: SLASH_COMMANDS });
     }
 
-    private createNewSession() {
+    private async insertCodeAtCursor(code: string) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showWarningMessage('No active editor to insert code');
+            return;
+        }
+
+        await editor.edit(editBuilder => {
+            editBuilder.insert(editor.selection.active, code);
+        });
+
+        this.post({ type: 'toast', message: 'Code inserted!' });
+    }
+
+    private async sendEditorContext() {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            const selection = editor.selection;
+            const selectedText = editor.document.getText(selection);
+            const fileName = path.basename(editor.document.fileName);
+            const language = editor.document.languageId;
+
+            this.post({
+                type: 'editorContext',
+                fileName,
+                language,
+                selectedText: selectedText || null,
+                hasSelection: !selection.isEmpty
+            });
+        }
+    }
+
+    private post(message: any) {
+        this._view?.webview.postMessage(message);
+    }
+
+    private startNewSession() {
         this.currentSession = {
             id: Date.now().toString(),
             title: 'New Chat',
@@ -101,227 +192,254 @@ export class LokiChatViewProvider implements vscode.WebviewViewProvider {
             createdAt: Date.now(),
             updatedAt: Date.now()
         };
-        this.post({ type: 'clearChat' });
+        this.sessions.unshift(this.currentSession);
+        this.saveHistory();
+        this.post({ type: 'sessionStarted', id: this.currentSession.id });
         this.sendHistory();
     }
 
-    private loadSession(sessionId: string) {
-        const session = this.sessions.find(s => s.id === sessionId);
+    private loadSession(id: string) {
+        const session = this.sessions.find(s => s.id === id);
         if (session) {
             this.currentSession = session;
-            this.post({ type: 'loadSession', messages: session.messages });
+            this.post({ type: 'sessionLoaded', messages: session.messages });
         }
     }
 
-    private deleteSession(sessionId: string) {
-        this.sessions = this.sessions.filter(s => s.id !== sessionId);
+    private deleteSession(id: string) {
+        this.sessions = this.sessions.filter(s => s.id !== id);
+        if (this.currentSession?.id === id) {
+            this.startNewSession();
+        }
         this.saveHistory();
         this.sendHistory();
     }
 
     private sendHistory() {
-        this.post({
-            type: 'history',
-            sessions: this.sessions.map(s => ({
-                id: s.id,
-                title: s.title,
-                preview: s.messages[0]?.content?.substring(0, 50) || 'Empty chat',
-                timestamp: s.updatedAt
-            }))
-        });
+        const history = this.sessions.map(s => ({
+            id: s.id,
+            title: s.title,
+            preview: s.messages[0]?.content.slice(0, 50) || 'Empty chat',
+            date: new Date(s.updatedAt).toLocaleDateString()
+        }));
+        this.post({ type: 'history', sessions: history });
+    }
+
+    private saveHistory() {
+        try {
+            fs.writeFileSync(this.historyFile, JSON.stringify(this.sessions.slice(0, 50), null, 2));
+        } catch (e) {
+            console.error('Failed to save history:', e);
+        }
     }
 
     private loadHistory() {
         try {
             if (fs.existsSync(this.historyFile)) {
-                const data = fs.readFileSync(this.historyFile, 'utf-8');
-                this.sessions = JSON.parse(data);
+                this.sessions = JSON.parse(fs.readFileSync(this.historyFile, 'utf-8'));
             }
-        } catch (error) {
-            console.error('Failed to load chat history:', error);
+        } catch (e) {
+            console.error('Failed to load history:', e);
             this.sessions = [];
         }
     }
 
-    private saveHistory() {
-        try {
-            const dir = path.dirname(this.historyFile);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
-            fs.writeFileSync(this.historyFile, JSON.stringify(this.sessions, null, 2));
-        } catch (error) {
-            console.error('Failed to save chat history:', error);
-        }
-    }
-
-    private addMessageToSession(role: 'user' | 'assistant' | 'system', content: string) {
+    private addMessageToSession(role: 'user' | 'assistant', content: string) {
         if (!this.currentSession) return;
 
-        const message: ChatMessage = {
+        const codeBlocks = this.extractCodeBlocks(content);
+        this.currentSession.messages.push({
             role,
             content,
-            timestamp: Date.now()
-        };
-
-        this.currentSession.messages.push(message);
-        this.currentSession.updatedAt = Date.now();
-
-        // Auto-title from first user message
-        if (role === 'user' && this.currentSession.messages.length === 1) {
-            this.currentSession.title = content.substring(0, 40) + (content.length > 40 ? '...' : '');
-        }
-
-        // Save to sessions list
-        const existingIndex = this.sessions.findIndex(s => s.id === this.currentSession!.id);
-        if (existingIndex >= 0) {
-            this.sessions[existingIndex] = this.currentSession;
-        } else {
-            this.sessions.unshift(this.currentSession);
-        }
-
-        // Keep only last 50 sessions
-        this.sessions = this.sessions.slice(0, 50);
-        this.saveHistory();
-        this.sendHistory();
-    }
-
-    public addBotMessage(content: string) {
-        if (!this._view) return;
-        this._view.webview.postMessage({ type: 'stream', content });
-        this._view.webview.postMessage({ type: 'done' });
-    }
-
-    private async handleUserMessage(text: string) {
-        if (!this._view) return;
-
-        // Add to session history
-        this.addMessageToSession('user', text);
-
-        // Post user message to UI
-        this._view.webview.postMessage({ type: 'message', role: 'user', content: text });
-
-        // Process via agent with callbacks
-        await this.agent.processMessage(text, {
-            onThinking: () => this.post({ type: 'thinking', value: true }),
-
-            onResponse: async (text: string) => {
-                this.addMessageToSession('assistant', text);
-                this.post({ type: 'thinking', value: false });
-                await this.streamResponse(text);
-                this.post({ type: 'done' });
-            },
-
-            onEditing: (file: string) => {
-                this.post({ type: 'thinking', value: false });
-                this.post({ type: 'system', content: `Editing ${file}...` });
-            },
-
-            onSummary: (summary: string[], files: string[]) => {
-                const summaryText = summary.join('\n');
-                this.addMessageToSession('assistant', summaryText);
-                this.post({ type: 'summary', summary, files });
-                this.post({ type: 'done' });
-            },
-
-            onAsk: (question: string) => {
-                this.addMessageToSession('assistant', question);
-                this.post({ type: 'thinking', value: false });
-                this.post({ type: 'message', role: 'assistant', content: question });
-            },
-
-            onProgress: (step: string) => {
-                this.post({ type: 'progress', step });
-            }
+            timestamp: Date.now(),
+            codeBlocks
         });
+
+        // Update title from first user message
+        if (role === 'user' && this.currentSession.messages.length === 1) {
+            this.currentSession.title = content.slice(0, 40) + (content.length > 40 ? '...' : '');
+        }
+
+        this.currentSession.updatedAt = Date.now();
+        this.saveHistory();
+    }
+
+    private extractCodeBlocks(content: string): { language: string; code: string }[] {
+        const blocks: { language: string; code: string }[] = [];
+        const regex = /```(\w*)\n([\s\S]*?)```/g;
+        let match;
+
+        while ((match = regex.exec(content)) !== null) {
+            blocks.push({
+                language: match[1] || 'plaintext',
+                code: match[2].trim()
+            });
+        }
+
+        return blocks;
+    }
+
+    private async handleChatMessage(text: string) {
+        if (!text.trim()) return;
+        if (!this._view) return;
+
+        // Handle slash commands
+        if (text.startsWith('/')) {
+            const handled = await this.handleSlashCommand(text);
+            if (handled) return;
+        }
+
+        // Add context if selected text exists
+        const editor = vscode.window.activeTextEditor;
+        let contextText = text;
+
+        if (editor && !editor.selection.isEmpty) {
+            const selectedCode = editor.document.getText(editor.selection);
+            const language = editor.document.languageId;
+            contextText = `${text}\n\nHere is the code:\n\`\`\`${language}\n${selectedCode}\n\`\`\``;
+        }
+
+        // Add user message
+        this.addMessageToSession('user', text);
+        this.post({ type: 'message', role: 'user', content: text });
+
+        // Show typing indicator
+        this.post({ type: 'typing', value: true });
+
+        try {
+            // Process with agent
+            await this.agent.processMessage(contextText, {
+                onThinking: () => {
+                    this.post({ type: 'typing', value: true });
+                },
+                onResponse: async (response: string) => {
+                    this.addMessageToSession('assistant', response);
+                    this.post({ type: 'typing', value: false });
+                    // Stream the response character by character
+                    await this.streamResponse(response);
+                },
+                onEditing: (file: string) => {
+                    this.modifiedFiles.add(file);
+                    this.post({ type: 'system', content: `📝 Editing ${file}...` });
+                    // Trigger file decoration update
+                    vscode.commands.executeCommand('loki.refreshDecorations');
+                },
+                onSummary: (summary: string[], files: string[]) => {
+                    files.forEach(f => this.modifiedFiles.add(f));
+                    const summaryText = summary.join('\n');
+                    this.addMessageToSession('assistant', summaryText);
+                    this.post({ type: 'summary', summary, files });
+                    this.post({ type: 'done' });
+                },
+                onAsk: (question: string) => {
+                    this.post({ type: 'typing', value: false });
+                    this.post({ type: 'message', role: 'assistant', content: question });
+                },
+                onProgress: (step: string) => {
+                    this.post({ type: 'progress', step });
+                }
+            });
+        } catch (e) {
+            this.post({ type: 'typing', value: false });
+            this.post({ type: 'error', message: `Error: ${e}` });
+        }
+    }
+
+    private async handleSlashCommand(text: string): Promise<boolean> {
+        const parts = text.split(' ');
+        const command = parts[0].toLowerCase();
+        const args = parts.slice(1).join(' ');
+
+        if (command === '/clear') {
+            this.startNewSession();
+            this.post({ type: 'cleared' });
+            return true;
+        }
+
+        if (command === '/new' && args) {
+            await this.handleChatMessage(`Create a new file: ${args}`);
+            return true;
+        }
+
+        const cmd = SLASH_COMMANDS[command];
+        if (cmd) {
+            const editor = vscode.window.activeTextEditor;
+            let prompt = cmd.prompt;
+
+            if (editor && !editor.selection.isEmpty) {
+                const selectedCode = editor.document.getText(editor.selection);
+                const language = editor.document.languageId;
+                prompt = `${cmd.prompt}\n\n\`\`\`${language}\n${selectedCode}\n\`\`\``;
+            } else if (args) {
+                prompt = `${cmd.prompt} ${args}`;
+            }
+
+            await this.handleChatMessage(prompt);
+            return true;
+        }
+
+        return false;
     }
 
     private async streamResponse(content: string) {
-        const chunks = content.match(/.{1,15}/g) || [content];
-        let accumulated = '';
-
-        for (const chunk of chunks) {
-            accumulated += chunk;
-            this.post({ type: 'stream', content: accumulated });
-            await new Promise(r => setTimeout(r, 10));
+        // Send content in chunks for typing animation
+        const chunkSize = 10;
+        for (let i = 0; i < content.length; i += chunkSize) {
+            const chunk = content.slice(i, i + chunkSize);
+            this.post({ type: 'stream', chunk, done: i + chunkSize >= content.length });
+            await new Promise(r => setTimeout(r, 15)); // 15ms per chunk
         }
-    }
-
-    private post(msg: any) {
-        this._view?.webview.postMessage(msg);
+        this.post({ type: 'done' });
     }
 
     private async pickImage() {
         const options: vscode.OpenDialogOptions = {
             canSelectMany: false,
             openLabel: 'Select Image',
-            filters: {
-                'Images': ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg']
-            }
+            filters: { 'Images': ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] }
         };
 
         const fileUri = await vscode.window.showOpenDialog(options);
         if (fileUri && fileUri[0]) {
             const filePath = fileUri[0].fsPath;
             const fileName = path.basename(filePath);
-
-            // Send image info back to webview
-            this.post({
-                type: 'imageSelected',
-                path: filePath,
-                name: fileName
-            });
+            this.post({ type: 'imageSelected', path: filePath, name: fileName });
         }
     }
 
-    private async loadModels() {
-        try {
-            const models = await ollamaClient.listModels();
-            const config = vscode.workspace.getConfiguration('loki');
-            this.post({ type: 'models', list: models, current: config.get('model') || 'codellama' });
-        } catch {
-            this.post({ type: 'models', list: ['codellama'], current: 'codellama' });
-        }
-    }
-
-    private async changeModel(model: string) {
-        await vscode.workspace.getConfiguration('loki').update('model', model, vscode.ConfigurationTarget.Global);
-        this.agent.reloadModel();
-    }
-
-    private getHtml() {
+    private getHtmlContent(): string {
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOKI</title>
+    <title>LOKI AI Chat</title>
     <style>
         :root {
-            --font: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif);
-            --font-mono: var(--vscode-editor-font-family, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace);
-            --fs-sm: 11px;
-            --fs-base: 13px;
-            --fs-md: 14px;
-            --bg: var(--vscode-sideBar-background);
-            --fg: var(--vscode-foreground);
-            --fg-muted: var(--vscode-descriptionForeground);
-            --border: var(--vscode-widget-border, rgba(255,255,255,0.1));
+            --bg: var(--vscode-editor-background);
+            --fg: var(--vscode-editor-foreground);
+            --border: var(--vscode-widget-border, var(--vscode-panel-border));
             --input-bg: var(--vscode-input-background);
-            --input-border: var(--vscode-input-border, var(--border));
-            --btn-bg: var(--vscode-button-background);
-            --btn-fg: var(--vscode-button-foreground);
-            --btn-hover: var(--vscode-button-hoverBackground);
-            --code-bg: var(--vscode-textBlockQuote-background);
-            --ai-msg-bg: transparent;
-            --user-msg-bg: var(--vscode-editor-inactiveSelectionBackground, rgba(128,128,128,0.1));
+            --input-fg: var(--vscode-input-foreground);
+            --input-border: var(--vscode-input-border, transparent);
+            --button-bg: var(--vscode-button-background);
+            --button-fg: var(--vscode-button-foreground);
+            --button-hover: var(--vscode-button-hoverBackground);
+            --code-bg: var(--vscode-textCodeBlock-background, rgba(0,0,0,0.2));
+            --accent: var(--vscode-focusBorder);
+            --user-msg-bg: var(--vscode-button-background);
+            --assistant-msg-bg: var(--vscode-editor-inactiveSelectionBackground, rgba(255,255,255,0.05));
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
-            font-family: var(--font);
-            font-size: var(--fs-base);
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size, 13px);
             background: var(--bg);
             color: var(--fg);
             height: 100vh;
@@ -330,14 +448,13 @@ export class LokiChatViewProvider implements vscode.WebviewViewProvider {
             overflow: hidden;
         }
 
-        /* === HEADER === */
+        /* Header */
         .header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 8px 12px;
             border-bottom: 1px solid var(--border);
-            background: var(--vscode-sideBarSectionHeader-background, var(--bg));
             gap: 8px;
         }
 
@@ -345,784 +462,747 @@ export class LokiChatViewProvider implements vscode.WebviewViewProvider {
             display: flex;
             align-items: center;
             gap: 8px;
-            flex: 1;
         }
 
         .logo {
-            font-weight: 700;
-            font-size: 12px;
-            opacity: 0.9;
-            letter-spacing: 0.5px;
+            font-weight: 600;
+            font-size: 14px;
         }
 
-        .icon-btn {
+        .header-btn {
             background: transparent;
             border: none;
             color: var(--fg);
             cursor: pointer;
-            padding: 4px 6px;
+            padding: 4px 8px;
             border-radius: 4px;
-            font-size: var(--fs-sm);
-            opacity: 0.8;
-            transition: all 0.15s;
-        }
-        .icon-btn:hover { background: var(--vscode-toolbar-hoverBackground); opacity: 1; }
-
-        .history-dropdown {
-            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0.7;
         }
 
-        .history-menu {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            margin-top: 4px;
-            background: var(--vscode-menu-background, #252526);
-            border: 1px solid var(--vscode-menu-border, #454545);
-            border-radius: 6px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-            min-width: 280px;
-            max-width: 320px;
-            max-height: 400px;
-            overflow-y: auto;
-            z-index: 1000;
-            padding: 4px 0;
-        }
-        .history-menu.show { display: block; }
-
-        .history-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--border);
-            transition: background 0.1s;
-        }
-        .history-item:hover { background: var(--vscode-list-hoverBackground); }
-        .history-item:last-child { border-bottom: none; }
-
-        .history-title {
-            font-size: var(--fs-sm);
-            font-weight: 500;
-            margin-bottom: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .history-preview {
-            font-size: 11px;
-            opacity: 0.6;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .header-btn:hover {
+            opacity: 1;
+            background: var(--assistant-msg-bg);
         }
 
         .model-select {
-            background: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            border: none;
-            border-radius: 12px;
-            padding: 2px 8px;
-            font-size: 10px;
-            height: 20px;
+            background: var(--input-bg);
+            color: var(--input-fg);
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
             cursor: pointer;
-            outline: none;
         }
 
-        /* === MESSAGES === */
-        #messages {
+        /* History Panel */
+        .history-panel {
+            display: none;
+            position: absolute;
+            top: 45px;
+            left: 8px;
+            right: 8px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .history-panel.show { display: block; }
+
+        .history-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item:hover { background: var(--assistant-msg-bg); }
+
+        .history-item:last-child { border-bottom: none; }
+
+        .history-title {
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .history-date {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-left: 8px;
+        }
+
+        .history-delete {
+            opacity: 0;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        .history-item:hover .history-delete { opacity: 0.7; }
+
+        /* Messages */
+        .messages {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 12px;
         }
 
         .message {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            animation: slideIn 0.2s ease-out;
-            line-height: 1.6;
+            max-width: 95%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            line-height: 1.5;
+            animation: fadeIn 0.2s ease;
         }
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(8px); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         .message.user {
             align-self: flex-end;
             background: var(--user-msg-bg);
-            padding: 10px 14px;
-            border-radius: 14px;
-            max-width: 85%;
+            color: var(--button-fg);
+            border-bottom-right-radius: 4px;
         }
 
         .message.assistant {
             align-self: flex-start;
-            max-width: 100%;
+            background: var(--assistant-msg-bg);
+            border-bottom-left-radius: 4px;
         }
 
-        .ai-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: var(--fs-sm);
-            font-weight: 600;
-            color: var(--fg-muted);
-            margin-bottom: 4px;
-        }
-
-        .ai-icon {
-            width: 16px;
-            height: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 4px;
-            display: grid;
-            place-items: center;
-            color: white;
-            font-size: 10px;
-            font-weight: 700;
-        }
-
-        /* Thinking Block */
-        details.thought-process {
-            border-left: 2px solid var(--vscode-textLink-activeForeground, #0078d4);
-            padding-left: 12px;
-            margin-bottom: 10px;
-            color: var(--fg-muted);
-            font-size: var(--fs-sm);
-        }
-
-        summary {
-            cursor: pointer;
-            outline: none;
-            user-select: none;
-            list-style: none;
-            font-weight: 500;
-            padding: 4px 0;
-            transition: color 0.15s;
-        }
-        summary:hover { color: var(--fg); }
-        summary::-webkit-details-marker { display: none; }
-
-        .thought-content {
-            margin-top: 8px;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            opacity: 0.85;
-            line-height: 1.5;
-        }
-
-        .log-line {
-            margin-bottom: 4px;
-            padding-left: 8px;
-            border-left: 1px solid var(--vscode-textLink-activeForeground);
-        }
-
-        /* Content Formatting */
-        .content {
-            font-size: var(--fs-base);
-            line-height: 1.7;
-        }
-
-        .content p {
-            margin: 8px 0;
-        }
-
-        .content p:first-child { margin-top: 0; }
-        .content p:last-child { margin-bottom: 0; }
-
-        .content ul, .content ol {
-            margin: 8px 0;
-            padding-left: 24px;
-        }
-
-        .content li {
-            margin: 4px 0;
-        }
-
-        .content h1, .content h2, .content h3 {
-            font-weight: 600;
-            margin: 16px 0 8px;
-        }
-
-        .content h1 { font-size: 18px; }
-        .content h2 { font-size: 16px; }
-        .content h3 { font-size: 14px; }
-
-        .content strong { font-weight: 600; }
-        .content em { font-style: italic; }
-
-        .content code {
-            background: var(--code-bg);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: var(--font-mono);
-            font-size: 12px;
-        }
-
-        .content pre {
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 14px;
-            margin: 12px 0;
-            overflow-x: auto;
-            position: relative;
-            font-family: var(--font-mono);
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
-        .content pre code {
-            background: none;
-            padding: 0;
-            border-radius: 0;
-        }
-
-        .copy-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: var(--vscode-button-secondaryBackground);
-            color: var(--vscode-button-secondaryForeground);
-            border: none;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 10px;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.15s, background 0.15s;
-        }
-        .content pre:hover .copy-btn { opacity: 1; }
-        .copy-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
-
-        /* === INPUT === */
-        .input-container {
-            padding: 12px;
-            background: var(--bg);
-            border-top: 1px solid var(--border);
-        }
-
-        .input-box {
-            background: var(--input-bg);
-            border: 1px solid var(--input-border);
-            border-radius: 12px;
-            padding: 10px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            transition: border-color 0.15s, box-shadow 0.15s;
-        }
-
-        .input-box:focus-within {
-            border-color: var(--vscode-focusBorder);
-            box-shadow: 0 0 0 1px var(--vscode-focusBorder);
-        }
-
-        textarea {
+        .message.system {
+            align-self: center;
             background: transparent;
-            border: none;
-            color: var(--fg);
-            font-family: var(--font);
-            font-size: var(--fs-base);
-            resize: none;
-            outline: none;
-            min-height: 22px;
-            max-height: 200px;
-            width: 100%;
-            line-height: 1.5;
+            opacity: 0.7;
+            font-size: 12px;
+            padding: 4px 8px;
         }
 
-        .input-footer {
+        /* Typing Indicator */
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            padding: 12px 16px;
+        }
+
+        .typing-indicator.show { display: flex; }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--fg);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite;
+            opacity: 0.5;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-6px); }
+        }
+
+        /* Code Blocks */
+        .code-block {
+            position: relative;
+            margin: 8px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--code-bg);
+        }
+
+        .code-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-top: 4px;
+            padding: 6px 10px;
+            background: rgba(0,0,0,0.2);
+            font-size: 11px;
+            opacity: 0.8;
         }
 
-        .left-controls {
+        .code-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .code-btn {
+            background: var(--button-bg);
+            color: var(--button-fg);
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+
+        .code-btn:hover { opacity: 1; }
+
+        .code-content {
+            padding: 10px;
+            overflow-x: auto;
+            font-family: var(--vscode-editor-font-family, 'Consolas', monospace);
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre;
+        }
+
+        /* Slash Commands Autocomplete */
+        .slash-menu {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .slash-menu.show { display: block; }
+
+        .slash-item {
+            padding: 8px 12px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .slash-item:hover, .slash-item.selected {
+            background: var(--accent);
+            color: var(--button-fg);
+        }
+
+        .slash-cmd {
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .slash-desc {
+            opacity: 0.7;
+            font-size: 12px;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 12px;
+            border-top: 1px solid var(--border);
             position: relative;
         }
 
-        .send-btn {
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            border: none;
-            background: var(--btn-bg);
-            color: var(--btn-fg);
-            cursor: pointer;
-            display: grid;
-            place-items: center;
-            transition: all 0.15s;
-        }
-        .send-btn:hover { background: var(--btn-hover); }
-        .send-btn.stop { background: var(--vscode-errorForeground); }
-
-        /* Context Menu */
-        .context-menu {
-            position: absolute;
-            bottom: 32px;
-            left: 0;
-            background: var(--vscode-menu-background, #252526);
-            color: var(--vscode-menu-foreground);
-            border: 1px solid var(--vscode-menu-border, #454545);
-            border-radius: 6px;
-            width: 160px;
-            display: none;
-            flex-direction: column;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            z-index: 1000;
-            padding: 4px 0;
-        }
-        .context-menu.show { display: flex; }
-
-        .menu-header {
-            padding: 8px 12px 4px;
-            font-size: 10px;
-            font-weight: 600;
-            opacity: 0.6;
-            text-transform: uppercase;
-        }
-
-        .menu-item {
+        .input-wrapper {
+            display: flex;
+            gap: 8px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
             padding: 8px 12px;
-            font-size: 12px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--accent);
+        }
+
+        #chatInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--input-fg);
+            font-family: inherit;
+            font-size: 13px;
+            resize: none;
+            min-height: 24px;
+            max-height: 120px;
+            line-height: 1.5;
+            outline: none;
+        }
+
+        .send-btn {
+            background: var(--button-bg);
+            color: var(--button-fg);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            transition: background 0.1s;
+            justify-content: center;
         }
-        .menu-item:hover { background: var(--vscode-list-hoverBackground); }
-        .menu-item svg { width: 14px; height: 14px; opacity: 0.8; }
 
-        /* Image Attachments */
-        .image-preview {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            background: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            margin: 4px 4px 4px 0;
+        .send-btn:hover { background: var(--button-hover); }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
-        .image-preview svg { width: 12px; height: 12px; }
+
+        .context-btn {
+            background: transparent;
+            border: none;
+            color: var(--fg);
+            cursor: pointer;
+            padding: 6px;
+            opacity: 0.6;
+        }
+
+        .context-btn:hover { opacity: 1; }
+
+        /* Progress */
+        .progress {
+            font-size: 11px;
+            opacity: 0.7;
+            padding: 4px 0;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--button-bg);
+            color: var(--button-fg);
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            animation: fadeInOut 2s ease;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { 
+            background: var(--border); 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--fg); opacity: 0.3; }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
         <div class="header-left">
             <span class="logo">LOKI</span>
-            <button id="newChatBtn" class="icon-btn" title="New Chat">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 0a1 1 0 011 1v6h6a1 1 0 110 2H9v6a1 1 0 11-2 0V9H1a1 1 0 010-2h6V1a1 1 0 011-1z"/>
-                </svg>
-            </button>
-            <div class="history-dropdown">
-                <button id="historyBtn" class="icon-btn" title="Chat History">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M8 3a5 5 0 015 5h1.5l-2 2.5L10.5 8H12a4 4 0 10-1.17 2.83l.71.71A5 5 0 118 3z"/>
-                    </svg>
-                </button>
-                <div id="historyMenu" class="history-menu"></div>
-            </div>
+            <button class="header-btn" id="newChatBtn" title="New Chat">+</button>
+            <button class="header-btn" id="historyBtn" title="History">☰</button>
         </div>
-        <select id="modelSelect" class="model-select">
-            <option>Loading...</option>
+        <select class="model-select" id="modelSelect">
+            <option value="codellama">codellama</option>
+            <option value="mistral:7b">mistral:7b</option>
+            <option value="llama3">llama3</option>
+            <option value="qwen2.5-coder">qwen2.5-coder</option>
+            <option value="deepseek-coder">deepseek-coder</option>
         </select>
     </div>
 
-    <!-- Messages -->
-    <div id="messages"></div>
+    <div class="history-panel" id="historyPanel"></div>
 
-    <!-- Input -->
-    <div class="input-container">
-        <div class="input-box">
-            <textarea id="input" rows="1" placeholder="Ask LOKI anything..."></textarea>
-            
-            <div class="input-footer">
-                <div class="left-controls">
-                    <button id="plusBtn" class="icon-btn" title="Add Context">
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8 0a1 1 0 011 1v6h6a1 1 0 110 2H9v6a1 1 0 11-2 0V9H1a1 1 0 010-2h6V1a1 1 0 011-1z"/>
-                        </svg>
-                    </button>
-                    
-                    <div id="contextMenu" class="context-menu">
-                        <div class="menu-header">Add context</div>
-                        <div class="menu-item" onclick="insertContext('media')">
-                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 5.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M2 1a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V3a2 2 0 00-2-2H2zm12 1a1 1 0 011 1v6.5l-3.78-1.95a.5.5 0 00-.58.09l-3.71 3.71-2.66-1.77a.5.5 0 00-.63.06L2 12V3a1 1 0 011-1h12z"/></svg>
-                            Media
-                        </div>
-                        <div class="menu-item" onclick="insertContext('mentions')">
-                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm0 6a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/><path d="M8 15A7 7 0 118 1a7 7 0 010 14zm0 1A8 8 0 108 0a8 8 0 000 16z"/></svg>
-                            Mentions
-                        </div>
-                        <div class="menu-item" onclick="insertContext('workflow')">
-                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11 2a1 1 0 011-1h2a1 1 0 011 1v12h.5a.5.5 0 000-1H16v-1a1 1 0 011-1V1a1 1 0 00-1-1H3a1 1 0 00-1 1v2.5a.5.5 0 01-1 0V2H.5a.5.5 0 000 1H1v12a1 1 0 001 1h2a1 1 0 001-1V2a1 1 0 011-1h5z"/></svg>
-                            Workflows
-                        </div>
-                    </div>
-                </div>
+    <div class="messages" id="messages">
+        <div class="message system">Ask me anything! Use /commands for quick actions.</div>
+    </div>
 
-                <button id="sendBtn" class="send-btn" title="Send">
-                    <div id="sendIcon">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M15.854.146a.5.5 0 01.11.54l-5.82 14.547a.75.75 0 01-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 01.124-1.33L15.314.037a.5.5 0 01.54.11zM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493z"/>
-                        </svg>
-                    </div>
-                    <div id="stopIcon" style="width: 8px; height: 8px; background: white; border-radius: 1px; display: none;"></div>
-                </button>
-            </div>
+    <div class="typing-indicator" id="typingIndicator">
+        <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
         </div>
+    </div>
+
+    <div class="input-area">
+        <div class="slash-menu" id="slashMenu"></div>
+        <div class="input-wrapper">
+            <button class="context-btn" id="contextBtn" title="Add context">+</button>
+            <textarea id="chatInput" placeholder="Ask LOKI anything... (/ for commands)" rows="1"></textarea>
+            <button class="send-btn" id="sendBtn" title="Send">➤</button>
+        </div>
+        <div class="progress" id="progress"></div>
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
-        const messages = document.getElementById('messages');
-        const input = document.getElementById('input');
-        const sendBtn = document.getElementById('sendBtn');
-        const sendIcon = document.getElementById('sendIcon');
-        const stopIcon = document.getElementById('stopIcon');
-        const modelSelect = document.getElementById('modelSelect');
-        const plusBtn = document.getElementById('plusBtn');
-        const contextMenu = document.getElementById('contextMenu');
-        const newChatBtn = document.getElementById('newChatBtn');
-        const historyBtn = document.getElementById('historyBtn');
-        const historyMenu = document.getElementById('historyMenu');
         
-        let isGenerating = false;
-        let currentThinking = null;
-        let thinkingTimer = null;
-        let startTime = 0;
-        let currentAiMsg = null;
+        const messagesEl = document.getElementById('messages');
+        const inputEl = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const typingEl = document.getElementById('typingIndicator');
+        const progressEl = document.getElementById('progress');
+        const slashMenuEl = document.getElementById('slashMenu');
+        const historyPanel = document.getElementById('historyPanel');
+        const historyBtn = document.getElementById('historyBtn');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const contextBtn = document.getElementById('contextBtn');
+        const modelSelect = document.getElementById('modelSelect');
 
-        // Init
-        input.focus();
-        vscode.postMessage({ type: 'refreshModels' });
-        vscode.postMessage({ type: 'requestHistory' });
+        let slashCommands = {};
+        let currentResponse = '';
+        let slashMenuIndex = 0;
 
-        // New Chat
+        // Auto-resize textarea
+        inputEl.addEventListener('input', () => {
+            inputEl.style.height = 'auto';
+            inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+            
+            // Show slash menu
+            if (inputEl.value.startsWith('/')) {
+                showSlashMenu(inputEl.value);
+            } else {
+                hideSlashMenu();
+            }
+        });
+
+        // Send message
+        function sendMessage() {
+            const text = inputEl.value.trim();
+            if (!text) return;
+            
+            vscode.postMessage({ type: 'chat', text });
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            hideSlashMenu();
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                
+                // If slash menu is open, select current item
+                if (slashMenuEl.classList.contains('show')) {
+                    const items = slashMenuEl.querySelectorAll('.slash-item');
+                    if (items[slashMenuIndex]) {
+                        inputEl.value = items[slashMenuIndex].dataset.cmd + ' ';
+                        hideSlashMenu();
+                        return;
+                    }
+                }
+                
+                sendMessage();
+            }
+            
+            // Navigate slash menu
+            if (slashMenuEl.classList.contains('show')) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigateSlashMenu(1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigateSlashMenu(-1);
+                } else if (e.key === 'Escape') {
+                    hideSlashMenu();
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const items = slashMenuEl.querySelectorAll('.slash-item');
+                    if (items[slashMenuIndex]) {
+                        inputEl.value = items[slashMenuIndex].dataset.cmd + ' ';
+                        hideSlashMenu();
+                    }
+                }
+            }
+        });
+
+        // Slash menu functions
+        function showSlashMenu(text) {
+            const query = text.slice(1).toLowerCase();
+            const matches = Object.entries(slashCommands).filter(([cmd]) => 
+                cmd.slice(1).toLowerCase().startsWith(query)
+            );
+            
+            if (matches.length === 0) {
+                hideSlashMenu();
+                return;
+            }
+            
+            slashMenuEl.innerHTML = matches.map(([cmd, info], i) => 
+                \`<div class="slash-item \${i === 0 ? 'selected' : ''}" data-cmd="\${cmd}">
+                    <span class="slash-cmd">\${cmd}</span>
+                    <span class="slash-desc">\${info.description}</span>
+                </div>\`
+            ).join('');
+            
+            slashMenuEl.classList.add('show');
+            slashMenuIndex = 0;
+            
+            // Add click handlers
+            slashMenuEl.querySelectorAll('.slash-item').forEach((item, i) => {
+                item.addEventListener('click', () => {
+                    inputEl.value = item.dataset.cmd + ' ';
+                    hideSlashMenu();
+                    inputEl.focus();
+                });
+                item.addEventListener('mouseenter', () => {
+                    slashMenuIndex = i;
+                    updateSlashMenuSelection();
+                });
+            });
+        }
+
+        function hideSlashMenu() {
+            slashMenuEl.classList.remove('show');
+        }
+
+        function navigateSlashMenu(dir) {
+            const items = slashMenuEl.querySelectorAll('.slash-item');
+            slashMenuIndex = Math.max(0, Math.min(items.length - 1, slashMenuIndex + dir));
+            updateSlashMenuSelection();
+        }
+
+        function updateSlashMenuSelection() {
+            slashMenuEl.querySelectorAll('.slash-item').forEach((item, i) => {
+                item.classList.toggle('selected', i === slashMenuIndex);
+            });
+        }
+
+        // History
+        historyBtn.addEventListener('click', () => {
+            historyPanel.classList.toggle('show');
+            if (historyPanel.classList.contains('show')) {
+                vscode.postMessage({ type: 'getHistory' });
+            }
+        });
+
         newChatBtn.addEventListener('click', () => {
             vscode.postMessage({ type: 'newChat' });
         });
 
-        // History
-        historyBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            historyMenu.classList.toggle('show');
+        // Context button
+        contextBtn.addEventListener('click', () => {
+            vscode.postMessage({ type: 'getContext' });
         });
 
-        document.addEventListener('click', (e) => {
-            if (!historyMenu.contains(e.target) && e.target !== historyBtn) {
-                historyMenu.classList.remove('show');
-            }
-            if (!contextMenu.contains(e.target) && e.target !== plusBtn) {
-                contextMenu.classList.remove('show');
-            }
-        });
-
-        // Context Menu
-        if (plusBtn && contextMenu) {
-            plusBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                contextMenu.classList.toggle('show');
-            });
-        }
-
-        window.insertContext = (type) => {
-            if (contextMenu) contextMenu.classList.remove('show');
-            let textToInsert = '';
-            
-            if (type === 'mentions') textToInsert = '@';
-            else if (type === 'workflow') textToInsert = '/';
-            else if (type === 'media') {
-                // Open file picker
-                vscode.postMessage({ type: 'pickImage' });
-                return;
-            }
-
-            const start = input.selectionStart;
-            const end = input.selectionEnd;
-            const text = input.value;
-            input.value = text.substring(0, start) + textToInsert + text.substring(end);
-            input.selectionStart = input.selectionEnd = start + textToInsert.length;
-            input.focus();
-        };
-
-        // Model Selection
+        // Model change
         modelSelect.addEventListener('change', () => {
             vscode.postMessage({ type: 'changeModel', model: modelSelect.value });
         });
 
-        // Input
-        input.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-        });
-
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (!isGenerating) send();
-            }
-        });
-
-        sendBtn.addEventListener('click', () => {
-            if (isGenerating) {
-                setGenerating(false);
-                vscode.postMessage({ type: 'cancel' });
-            } else {
-                send();
-            }
-        });
-
-        function send() {
-            const text = input.value.trim();
-            if (!text) return;
-
-            addMessage('user', text);
-            vscode.postMessage({ type: 'send', text });
-            
-            input.value = '';
-            input.style.height = 'auto';
-            setGenerating(true);
-        }
-
-        function setGenerating(generating) {
-            isGenerating = generating;
-            if (generating) {
-                sendBtn.classList.add('stop');
-                sendIcon.style.display = 'none';
-                stopIcon.style.display = 'block';
-            } else {
-                sendBtn.classList.remove('stop');
-                sendIcon.style.display = 'block';
-                stopIcon.style.display = 'none';
-                if (currentThinking) stopThinking();
-            }
-        }
-
-        // Messages
+        // Add message to UI
         function addMessage(role, content) {
             const div = document.createElement('div');
             div.className = \`message \${role}\`;
-
-            if (role === 'assistant') {
-                const header = document.createElement('div');
-                header.className = 'ai-header';
-                header.innerHTML = '<div class="ai-icon">L</div> LOKI';
-                div.appendChild(header);
-            }
-
-            const body = document.createElement('div');
-            body.className = 'content';
-            body.innerHTML = role === 'user' ? escapeHtml(content) : parseMarkdown(content);
-            
-            div.appendChild(body);
-            messages.appendChild(div);
+            div.innerHTML = formatContent(content);
+            messagesEl.appendChild(div);
             scrollToBottom();
-            return body;
+            
+            // Add code block handlers
+            div.querySelectorAll('.code-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const code = btn.closest('.code-block').querySelector('.code-content').textContent;
+                    if (btn.classList.contains('insert-btn')) {
+                        vscode.postMessage({ type: 'insertCode', code });
+                    } else if (btn.classList.contains('copy-btn')) {
+                        vscode.postMessage({ type: 'copyCode', code });
+                    }
+                });
+            });
         }
 
-        // Thinking
-        function startThinking() {
-            if (currentThinking) return;
-
-            const div = document.createElement('div');
-            div.className = 'message assistant';
-            div.innerHTML = '<div class="ai-header"><div class="ai-icon">L</div> LOKI</div>';
-            
-            const details = document.createElement('details');
-            details.className = 'thought-process';
-            details.open = true;
-            
-            const summary = document.createElement('summary');
-            summary.textContent = 'Thinking...';
-            
-            const content = document.createElement('div');
-            content.className = 'thought-content';
-            
-            details.appendChild(summary);
-            details.appendChild(content);
-            div.appendChild(details);
-            
-            messages.appendChild(div);
-            scrollToBottom();
-
-            currentThinking = { container: div, details, summary, content, responseDiv: null };
-            startTime = Date.now();
-            
-            thinkingTimer = setInterval(() => {
-                const seconds = Math.floor((Date.now() - startTime) / 1000);
-                summary.textContent = \`Thinking for \${seconds}s...\`;
-            }, 1000);
-        }
-
-        function updateThinking(text) {
-            if (!currentThinking) startThinking();
-            
-            const line = document.createElement('div');
-            line.className = 'log-line';
-            line.textContent = text;
-            currentThinking.content.appendChild(line);
-            
-            if (currentThinking.details.open) scrollToBottom();
-        }
-
-        function stopThinking() {
-            if (!currentThinking) return;
-            clearInterval(thinkingTimer);
-            const seconds = Math.floor((Date.now() - startTime) / 1000);
-            currentThinking.summary.textContent = \`Thought for \${seconds}s\`;
-            currentThinking.details.open = false;
-        }
-
-        // Formatting
-        function scrollToBottom() {
-            messages.scrollTop = messages.scrollHeight;
+        // Format content with code blocks
+        function formatContent(content) {
+            // Replace code blocks with styled versions
+            return content.replace(/\`\`\`(\\w*)\\n([\\s\\S]*?)\`\`\`/g, (_, lang, code) => {
+                return \`<div class="code-block">
+                    <div class="code-header">
+                        <span>\${lang || 'code'}</span>
+                        <div class="code-actions">
+                            <button class="code-btn copy-btn">Copy</button>
+                            <button class="code-btn insert-btn">Insert</button>
+                        </div>
+                    </div>
+                    <pre class="code-content">\${escapeHtml(code)}</pre>
+                </div>\`;
+            }).replace(/\`([^\`]+)\`/g, '<code>$1</code>').replace(/\\n/g, '<br>');
         }
 
         function escapeHtml(text) {
-            const temp = document.createElement('div');
-            temp.textContent = text;
-            return temp.innerHTML.replace(/\\n/g, '<br>');
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
-        function parseMarkdown(text) {
-            return text
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                // Code blocks
-                .replace(/\`\`\`(\\w+)?\\n([\\s\\S]*?)\`\`\`/g, (_, lang, code) => 
-                    \`<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>\${code.replace(/&lt;/g, '<').replace(/&gt;/g, '>')}</code></pre>\`)
-                // Inline code
-                .replace(/\`([^\`]+)\`/g, '<code>$1</code>')
-                // Bold
-                .replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>')
-                // Italic
-                .replace(/\\*(.+?)\\*/g, '<em>$1</em>')
-                // Headers
-                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-                // Lists
-                .replace(/^\\d+\\. (.+)$/gm, '<li>$1</li>')
-                .replace(/^- (.+)$/gm, '<li>$1</li>')
-                .replace(/(<li>.*<\\/li>)/s, '<ul>$1</ul>')
-                // Line breaks
-                .replace(/\\n\\n/g, '</p><p>')
-                .replace(/^(.+)$/gm, '<p>$1</p>')
-                .replace(/<p><h/g, '<h')
-                .replace(/<\\/h\\d><\\/p>/g, (match) => match.replace(/<\\/p>/g, ''))
-                .replace(/<p><ul>/g, '<ul>').replace(/<\\/ul><\\/p>/g, '</ul>');
+        function scrollToBottom() {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
         }
 
-        window.copyCode = (btn) => {
-            const code = btn.nextElementSibling.textContent;
-            navigator.clipboard.writeText(code);
-            btn.textContent = 'Copied!';
-            setTimeout(() => btn.textContent = 'Copy', 2000);
-        };
+        // Handle streaming response
+        let streamBuffer = '';
+        let streamDiv = null;
 
-        // Incoming Messages
-        window.addEventListener('message', event => {
-            const m = event.data;
-            switch (m.type) {
-                case 'models':
-                    if (m.list) {
-                        modelSelect.innerHTML = m.list.map(x => 
-                            \`<option value="\${x.name || x}" \${(x.name || x) === m.current ? 'selected' : ''}>\${x.name || x}</option>\`
-                        ).join('');
-                    }
-                    if (m.current) modelSelect.value = m.current;
-                    break;
+        function startStream() {
+            streamBuffer = '';
+            streamDiv = document.createElement('div');
+            streamDiv.className = 'message assistant';
+            messagesEl.appendChild(streamDiv);
+        }
 
-                case 'history':
-                    historyMenu.innerHTML = '';
-                    if (m.sessions && m.sessions.length > 0) {
-                        m.sessions.forEach(session => {
-                            const item = document.createElement('div');
-                            item.className = 'history-item';
-                            item.innerHTML = \`
-                                <div class="history-title">\${session.title}</div>
-                                <div class="history-preview">\${session.preview}</div>
-                            \`;
-                            item.addEventListener('click', () => {
-                                vscode.postMessage({ type: 'loadSession', sessionId: session.id });
-                                historyMenu.classList.remove('show');
-                            });
-                            historyMenu.appendChild(item);
-                        });
-                    } else {
-                        historyMenu.innerHTML = '<div class="history-item" style="opacity:0.5; cursor: default;">No history yet</div>';
-                    }
-                    break;
-
-                case 'clearChat':
-                    messages.innerHTML = '';
-                    break;
-
-                case 'loadSession':
-                    messages.innerHTML = '';
-                    if (m.messages) {
-                        m.messages.forEach(msg => {
-                            addMessage(msg.role, msg.content);
-                        });
-                    }
-                    break;
-
-                case 'thinking':
-                    if (m.value) startThinking();
-                    break;
-
-                case 'progress':
-                case 'system':
-                    updateThinking(m.step || m.content);
-                    break;
-
-                case 'stream':
-                    stopThinking();
-                    if (currentThinking && currentThinking.container) {
-                        if (!currentThinking.responseDiv) {
-                            currentThinking.responseDiv = document.createElement('div');
-                            currentThinking.responseDiv.className = 'content';
-                            currentThinking.container.appendChild(currentThinking.responseDiv);
+        function appendStream(chunk) {
+            if (!streamDiv) startStream();
+            streamBuffer += chunk;
+            streamDiv.innerHTML = formatContent(streamBuffer);
+            scrollToBottom();
+            
+            // Add code block handlers
+            streamDiv.querySelectorAll('.code-btn').forEach(btn => {
+                if (!btn.hasHandler) {
+                    btn.hasHandler = true;
+                    btn.addEventListener('click', () => {
+                        const code = btn.closest('.code-block').querySelector('.code-content').textContent;
+                        if (btn.classList.contains('insert-btn')) {
+                            vscode.postMessage({ type: 'insertCode', code });
+                        } else if (btn.classList.contains('copy-btn')) {
+                            vscode.postMessage({ type: 'copyCode', code });
                         }
-                        currentThinking.responseDiv.innerHTML = parseMarkdown(m.content);
-                    } else {
-                        if (!currentAiMsg) currentAiMsg = addMessage('assistant', '');
-                        currentAiMsg.innerHTML = parseMarkdown(m.content);
-                    }
-                    scrollToBottom();
-                    break;
+                    });
+                }
+            });
+        }
 
+        function endStream() {
+            streamDiv = null;
+            streamBuffer = '';
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        // Handle messages from extension
+        window.addEventListener('message', (event) => {
+            const msg = event.data;
+            
+            switch (msg.type) {
+                case 'message':
+                    addMessage(msg.role, msg.content);
+                    break;
+                    
+                case 'stream':
+                    appendStream(msg.chunk);
+                    if (msg.done) endStream();
+                    break;
+                    
+                case 'typing':
+                    typingEl.classList.toggle('show', msg.value);
+                    if (msg.value) scrollToBottom();
+                    break;
+                    
+                case 'progress':
+                    progressEl.textContent = msg.step;
+                    break;
+                    
                 case 'done':
-                    setGenerating(false);
-                    currentAiMsg = null;
-                    if (currentThinking) currentThinking = null;
+                    progressEl.textContent = '';
+                    endStream();
                     break;
-
-                case 'imageSelected':
-                    if (m.name && m.path) {
-                        // Add image reference to input
-                        const imageText = \`[Image: \${m.name}] \`;
-                        input.value += imageText;
-                        input.focus();
+                    
+                case 'error':
+                    addMessage('system', '❌ ' + msg.message);
+                    break;
+                    
+                case 'system':
+                    addMessage('system', msg.content);
+                    break;
+                    
+                case 'toast':
+                    showToast(msg.message);
+                    break;
+                    
+                case 'cleared':
+                    messagesEl.innerHTML = '<div class="message system">New chat started. Ask me anything!</div>';
+                    break;
+                    
+                case 'slashCommands':
+                    slashCommands = msg.commands;
+                    break;
+                    
+                case 'history':
+                    renderHistory(msg.sessions);
+                    break;
+                    
+                case 'sessionLoaded':
+                    messagesEl.innerHTML = '';
+                    msg.messages.forEach(m => addMessage(m.role, m.content));
+                    historyPanel.classList.remove('show');
+                    break;
+                    
+                case 'editorContext':
+                    if (msg.selectedText) {
+                        inputEl.value += \`\n\nSelected code from \${msg.fileName}:\n\\\`\\\`\\\`\${msg.language}\n\${msg.selectedText}\n\\\`\\\`\\\`\`;
+                        inputEl.style.height = 'auto';
+                        inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+                    } else {
+                        showToast('No text selected in editor');
                     }
                     break;
             }
         });
+
+        function renderHistory(sessions) {
+            historyPanel.innerHTML = sessions.map(s => \`
+                <div class="history-item" data-id="\${s.id}">
+                    <span class="history-title">\${s.title}</span>
+                    <span class="history-date">\${s.date}</span>
+                    <span class="history-delete" data-id="\${s.id}">✕</span>
+                </div>
+            \`).join('') || '<div class="history-item">No history yet</div>';
+            
+            historyPanel.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('history-delete')) {
+                        vscode.postMessage({ type: 'deleteSession', id: e.target.dataset.id });
+                    } else if (item.dataset.id) {
+                        vscode.postMessage({ type: 'loadSession', id: item.dataset.id });
+                    }
+                });
+            });
+        }
+
+        // Request initial data
+        vscode.postMessage({ type: 'getSlashCommands' });
+
+        // Focus input on load
+        inputEl.focus();
     </script>
 </body>
 </html>`;
