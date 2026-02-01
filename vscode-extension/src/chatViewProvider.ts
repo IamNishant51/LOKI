@@ -1077,12 +1077,14 @@ export class LokiChatViewProvider implements vscode.WebviewViewProvider {
     <div class="messages" id="messages">
         <div class="welcome-message">
             <div class="welcome-logo">
-                <!-- Large Sparkle Icon -->
-                <svg width="60" height="60" viewBox="0 0 16 16" fill="currentColor">
-                     <path d="M6 14.5L7.5 10l4.5-1.5L7.5 7 6 2.5 4.5 7 0 8.5l4.5 1.5z"/>
+                <svg width="120" height="40" viewBox="0 0 110 40" fill="currentColor">
+                    <path d="M5 5V35H28V28H13V5H5Z"/>
+                    <path d="M35 5H58V35H35V5ZM43 12V28H50V12H43Z"/>
+                    <path d="M65 5V35H73V23L83 35H93L80 19L93 5H83L73 17V5H65Z"/>
+                    <path d="M100 5V35H108V5H100Z"/>
                 </svg>
             </div>
-            <h2 style="font-weight:600;">How can I help you?</h2>
+            <h2 style="font-weight:600; margin-top:10px;">How can I help you?</h2>
             <p style="font-size:12px; max-width: 80%;">I can generate code, explain complex logic, or help you refactor your project.</p>
         </div>
     </div>
