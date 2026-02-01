@@ -6,12 +6,14 @@
  * - Direct file writing with complete code
  * - Error recovery and self-healing
  * - Multiple parsing strategies for tool calls
+ * - 16+ tools including web search
  */
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
+import { getToolByName } from './tools';
 
 // ============== TYPES ==============
 
@@ -34,44 +36,69 @@ interface OllamaResponse {
 
 const MAX_RETRIES = 3;
 
-const SYSTEM_PROMPT = `You are LOKI, an elite autonomous coding assistant. You write COMPLETE, PRODUCTION-READY code.
+const SYSTEM_PROMPT = `You are LOKI, an elite autonomous coding assistant with powerful tools.
 
 CRITICAL RULES:
 1. NEVER write placeholders like "// code here", "// TODO", "...", or "// implementation"
 2. ALWAYS write FULL, WORKING, COMPLETE code
-3. When creating files, include ALL necessary code - imports, classes, functions, everything
-4. Write code that compiles and runs immediately
+3. READ files before editing them
+4. Use webSearch when you need documentation or examples
+5. Check problems after making changes
 
-TOOLS - Use this EXACT JSON format:
+AVAILABLE TOOLS (use JSON format):
 
-To create/write a file:
-{"tool": "writeFile", "args": {"path": "filename.ext", "content": "COMPLETE CODE HERE"}}
+FILE OPERATIONS:
+{"tool": "writeFile", "args": {"path": "file.ts", "content": "COMPLETE CODE"}}
+{"tool": "readFile", "args": {"path": "file.ts"}}
+{"tool": "editFile", "args": {"path": "file.ts", "search": "old", "replace": "new"}}
+{"tool": "listDirectory", "args": {"path": "src"}}
+{"tool": "createDirectory", "args": {"path": "new-folder"}}
 
-To read a file:
-{"tool": "readFile", "args": {"path": "filename.ext"}}
+SEARCH TOOLS:
+{"tool": "fileSearch", "args": {"pattern": "**/*.ts"}}
+{"tool": "textSearch", "args": {"query": "function name"}}
+{"tool": "codebase", "args": {}}
 
-To edit part of a file:
-{"tool": "editFile", "args": {"path": "filename.ext", "search": "old code", "replace": "new code"}}
+EDITOR TOOLS:
+{"tool": "selection", "args": {}}
+{"tool": "currentFile", "args": {}}
+{"tool": "problems", "args": {}}
 
-To run a command:
-{"tool": "runCommand", "args": {"command": "npm install"}}
+TERMINAL:
+{"tool": "runInTerminal", "args": {"command": "npm install"}}
 
-When done:
+WEB SEARCH (use when you need documentation, examples, or current info):
+{"tool": "webSearch", "args": {"query": "React hooks tutorial"}}
+{"tool": "fetchUrl", "args": {"url": "https://docs.example.com"}}
+
+GIT:
+{"tool": "changes", "args": {}}
+
+COMPLETION:
 {"tool": "complete", "args": {"summary": "What was done"}}
 
-EXAMPLE - Creating a Java calculator:
-{"tool": "writeFile", "args": {"path": "Calculator.java", "content": "import java.util.Scanner;\\n\\npublic class Calculator {\\n    public static void main(String[] args) {\\n        Scanner scanner = new Scanner(System.in);\\n        System.out.println(\\"Simple Calculator\\");\\n        System.out.print(\\"Enter first number: \\");\\n        double num1 = scanner.nextDouble();\\n        System.out.print(\\"Enter operator (+, -, *, /): \\");\\n        char operator = scanner.next().charAt(0);\\n        System.out.print(\\"Enter second number: \\");\\n        double num2 = scanner.nextDouble();\\n        double result = 0;\\n        switch (operator) {\\n            case '+': result = num1 + num2; break;\\n            case '-': result = num1 - num2; break;\\n            case '*': result = num1 * num2; break;\\n            case '/': result = num1 / num2; break;\\n            default: System.out.println(\\"Invalid operator\\"); return;\\n        }\\n        System.out.println(\\"Result: \\" + result);\\n        scanner.close();\\n    }\\n}"}}
+WORKFLOW:
+1. Understand the request
+2. Gather context (readFile, codebase, webSearch if needed)
+3. Make changes (writeFile, editFile)
+4. Verify (problems)
+5. Complete with summary
 
-Remember: Your code must be COMPLETE and FUNCTIONAL. No shortcuts, no placeholders.`;
+Remember: Write COMPLETE, WORKING, PRODUCTION-READY code. No shortcuts.`;
 
 // ============== OLLAMA CLIENT ==============
 
 async function ollamaChat(
     messages: Array<{ role: string; content: string }>,
     model: string,
-    baseUrl: string
+    baseUrl: string,
+    signal?: AbortSignal
 ): Promise<string> {
     return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            return reject(new Error('Aborted'));
+        }
+
         const url = new URL(baseUrl);
         const postData = JSON.stringify({
             model,
@@ -79,7 +106,7 @@ async function ollamaChat(
             stream: false,
             options: {
                 temperature: 0.2,
-                num_predict: 4096  // Allow longer responses for complete code
+                num_predict: 4096
             }
         });
 
@@ -92,7 +119,7 @@ async function ollamaChat(
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(postData)
             },
-            timeout: 180000 // 3 minutes for complex code generation
+            timeout: 180000
         }, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
@@ -105,6 +132,13 @@ async function ollamaChat(
                 }
             });
         });
+
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                req.destroy();
+                reject(new Error('Aborted'));
+            });
+        }
 
         req.on('error', reject);
         req.on('timeout', () => reject(new Error('Request timeout')));
@@ -268,7 +302,7 @@ export class LokiAgent {
         this.baseUrl = config.get<string>('ollamaUrl') || 'http://localhost:11434';
     }
 
-    async processMessage(message: string, callbacks: ToolCallbacks): Promise<void> {
+    async processMessage(message: string, callbacks: ToolCallbacks, signal?: AbortSignal): Promise<void> {
         const messages: Array<{ role: string; content: string }> = [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: message }
@@ -282,9 +316,11 @@ export class LokiAgent {
 
         try {
             for (let step = 0; step < 10 && retryCount < MAX_RETRIES; step++) {
+                if (signal?.aborted) throw new Error('Aborted by user');
+
                 callbacks.onProgress(`Step ${step + 1}...`);
 
-                const response = await ollamaChat(messages, this.model, this.baseUrl);
+                const response = await ollamaChat(messages, this.model, this.baseUrl, signal);
                 messages.push({ role: 'assistant', content: response });
 
                 // Try to parse tool call

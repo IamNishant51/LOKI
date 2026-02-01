@@ -68,7 +68,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // ===== REGISTER CHAT VIEW PROVIDER =====
-    const chatProvider = new LokiChatViewProvider(context.extensionUri, agent, context);
+    const chatProvider = new LokiChatViewProvider(context.extensionUri, context, statusBarManager);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             LokiChatViewProvider.viewType,
@@ -144,8 +144,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Toggle completions
     context.subscriptions.push(
-        vscode.commands.registerCommand('loki.toggleCompletions', () => {
+        vscode.commands.registerCommand('loki.toggleCompletions', async () => {
             completionsEnabled = !completionsEnabled;
+
+            // Persist to user settings so provider respects the toggle
+            await vscode.workspace.getConfiguration('loki').update(
+                'enableCompletions',
+                completionsEnabled,
+                vscode.ConfigurationTarget.Global
+            );
+
             vscode.window.showInformationMessage(
                 `LOKI: Inline completions ${completionsEnabled ? 'enabled' : 'disabled'}`
             );

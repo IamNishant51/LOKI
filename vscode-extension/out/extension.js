@@ -92,7 +92,7 @@ async function activate(context) {
         });
     }
     // ===== REGISTER CHAT VIEW PROVIDER =====
-    const chatProvider = new chatViewProvider_1.LokiChatViewProvider(context.extensionUri, agent, context);
+    const chatProvider = new chatViewProvider_1.LokiChatViewProvider(context.extensionUri, context, statusBarManager);
     context.subscriptions.push(vscode.window.registerWebviewViewProvider(chatViewProvider_1.LokiChatViewProvider.viewType, chatProvider, { webviewOptions: { retainContextWhenHidden: true } }));
     console.log('[LOKI] Chat sidebar registered');
     // ===== REGISTER INLINE COMPLETION PROVIDER =====
@@ -136,8 +136,10 @@ async function activate(context) {
         await statusBarManager.showModelPicker();
     }));
     // Toggle completions
-    context.subscriptions.push(vscode.commands.registerCommand('loki.toggleCompletions', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('loki.toggleCompletions', async () => {
         completionsEnabled = !completionsEnabled;
+        // Persist to user settings so provider respects the toggle
+        await vscode.workspace.getConfiguration('loki').update('enableCompletions', completionsEnabled, vscode.ConfigurationTarget.Global);
         vscode.window.showInformationMessage(`LOKI: Inline completions ${completionsEnabled ? 'enabled' : 'disabled'}`);
     }));
     // Refresh file decorations
