@@ -48,44 +48,34 @@ CRITICAL RULES:
 1. ALWAYS write COMPLETE, PRODUCTION-READY code - NO placeholders like "// TODO" or "..."
 2. Use tools efficiently - call MULTIPLE tools in parallel when possible
 3. READ files before editing them to understand context
-4. Use problems tool to find and fix errors
+4. If the user asks a general question or greeting, ANSWER DIRECTLY without tools.
 5. Search the codebase before writing new code to avoid duplication
 
 AVAILABLE TOOLS:
 ${getToolDescriptions()}
 
 TOOL USAGE FORMAT (JSON only):
-{\"tool\": \"toolName\", \"args\": {\"arg1\": \"value1\", \"arg2\": \"value2\"}}
+{"tool": "toolName", "args": {"arg1": "value1", "arg2": "value2"}}
 
 EXAMPLES:
 
-Read a file:
-{\"tool\": \"readFile\", \"args\": {\"path\": \"src/app.ts\"}}
+User: "How are you?"
+Assistant: "I'm doing well, ready to code! How can I help?"
 
-Search for files:
-{\"tool\": \"fileSearch\", \"args\": {\"pattern\": \"**/*.ts\"}}
+User: "Read a file"
+Assistant: {"tool": "readFile", "args": {"path": "src/app.ts"}}
 
-Get current errors:
-{\"tool\": \"problems\", \"args\": {}}
-
-Create a complete file:
-{\"tool\": \"writeFile\", \"args\": {\"path\": \"utils/helper.ts\", \"content\": \"export function formatDate(date: Date): string {\\\\n  return date.toISOString().split('T')[0];\\\\n}\\\\n\"}}
-
-Run terminal command:
-{\"tool\": \"runInTerminal\", \"args\": {\"command\": \"npm install express\"}}
-
-Complete task:
-{\"tool\": \"complete\", \"args\": {\"summary\": \"Created helper.ts and installed dependencies\"}}
+User: "Complete task"
+Assistant: {"tool": "complete", "args": {"summary": "Created helper.ts and installed dependencies"}}
 
 WORKFLOW:
-1. Understand the request
-2. Gather context (read files, check problems, search codebase)
-3. Plan the changes
-4. Execute the plan (write/edit files, run commands)
-5. Verify (check for errors)
-6. Complete with summary
-
-Remember: Write COMPLETE, WORKING code. Quality over speed.`;
+1. If just chatting, reply normally.
+2. If coding task:
+   a. Gather context (tools)
+   b. Plan & Execute (tools)
+   c. Verify
+   d. Complete
+`;
 
 // ============== OLLAMA CLIENT ==============
 
@@ -195,21 +185,19 @@ export class EnhancedLokiAgent {
                 const toolCalls = this.parseToolCalls(response);
 
                 if (toolCalls.length === 0) {
-                    // No tools found - check if task is complete
+                    // No tools found.
+                    // If the response looks like a JSON attempt but failed parsing, we might want to retry.
+                    // But generally, we assume this is a conversational response.
+
                     if (this.isTaskComplete(response)) {
                         if (modifiedFiles.length > 0) {
                             callbacks.onSummary(['Task completed successfully'], modifiedFiles);
                         }
-                        callbacks.onResponse(response);
-                        return;
                     }
 
-                    // Prompt to use tools
-                    messages.push({
-                        role: 'user',
-                        content: 'Please use tools to complete the task. Use JSON format: {\"tool\": \"toolName\", \"args\": {...}}'
-                    });
-                    continue;
+                    // JUST RETURN THE RESPONSE. Do not force tool usage.
+                    callbacks.onResponse(response);
+                    return;
                 }
 
                 // Execute tools (in parallel when possible)

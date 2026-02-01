@@ -179,23 +179,26 @@ function addMessage(role, content) {
     const div = document.createElement('div');
     div.className = `message ${role}`;
 
-    const userIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>`;
-    const aiIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6 14.5L7.5 10l4.5-1.5L7.5 7 6 2.5 4.5 7 0 8.5l4.5 1.5z"/></svg>`;
-
-    const avatarContent = role === 'user' ? userIcon : aiIcon;
-    const senderName = role === 'user' ? 'You' : 'Loki AI';
+    // Only render header for assistant
+    let headerHTML = '';
+    if (role === 'assistant') {
+        const aiIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6 14.5L7.5 10l4.5-1.5L7.5 7 6 2.5 4.5 7 0 8.5l4.5 1.5z"/></svg>`;
+        headerHTML = `
+        <div class="message-header">
+            <div class="avatar assistant">${aiIcon}</div>
+            <span>Loki AI</span>
+        </div>`;
+    }
 
     div.innerHTML = `
-        <div class="message-header">
-            <div class="avatar ${role}">${avatarContent}</div>
-            <span>${senderName}</span>
-        </div>
+        ${headerHTML}
         <div class="message-content">${formatContent(content)}</div>
     `;
 
     messagesEl.appendChild(div);
     scrollToBottom();
 
+    // Bind buttons (only relevant for assistant mainly, but safe to keep generalized)
     div.querySelectorAll('.code-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const block = e.target.closest('.code-block');
